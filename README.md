@@ -12,11 +12,13 @@ iOS 사진 앱의 특정 앨범과 Adobe Lightroom 사용자 앨범에서 사진
 | **콜라주** | 2~9장 사진을 한 화면에 모자이크 레이아웃으로 배치 |
 | **그리드 갤러리** | 전체 사진을 격자로 스크롤, 탭하면 전체화면 |
 | **화면 꺼짐 방지** | 액자 모드에서 `isIdleTimerDisabled = true` |
+| **iPad 가로 기본** | 거치형 액자에 맞춰 iPad·iPhone 모두 가로(Landscape) 전용으로 동작 |
 
 ## 요구 사항
 
 - iOS 17.0+
 - Xcode 16.0+
+- iPad 가로(Landscape) 방향 기본 (세로 모드는 비활성화)
 - Adobe Developer Console API 자격 증명 (Lightroom 연동 시)
 
 ## Lightroom 연동 설정
