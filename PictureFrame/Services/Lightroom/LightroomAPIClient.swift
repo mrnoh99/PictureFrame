@@ -60,20 +60,20 @@ final class LightroomAPIClient {
     // MARK: - 렌디션(이미지) URL
 
     /// 특정 자산의 렌디션(썸네일 또는 원본) URL 을 반환한다.
-    /// size: 2048 | 1280 | 640 | 320
-    func renditionURL(catalogID: String, assetID: String, size: Int = 1280) -> URL? {
+    /// Lightroom API 의 유효한 렌디션 크기: thumbnail2x | 640 | 1280 | 2048 | fullsize
+    func renditionURL(catalogID: String, assetID: String, size: String = "1280") -> URL? {
         URL(string: "\(AppConfig.Lightroom.apiBaseURL)/catalogs/\(catalogID)/assets/\(assetID)/renditions/\(size)")
     }
 
     func downloadImage(catalogID: String, assetID: String, targetSize: CGSize) async throws -> UIImage {
         let scale = UIScreen.main.scale
         let maxDim = max(targetSize.width, targetSize.height) * scale
-        let renditionSize: Int
+        // 유효한 렌디션 크기로만 매핑 (320 같은 비표준 크기는 404 를 유발).
+        let renditionSize: String
         switch maxDim {
-        case ..<400: renditionSize = 320
-        case 400..<800: renditionSize = 640
-        case 800..<1600: renditionSize = 1280
-        default: renditionSize = 2048
+        case ..<700: renditionSize = "640"
+        case 700..<1600: renditionSize = "1280"
+        default: renditionSize = "2048"
         }
 
         guard let url = renditionURL(catalogID: catalogID, assetID: assetID, size: renditionSize) else {

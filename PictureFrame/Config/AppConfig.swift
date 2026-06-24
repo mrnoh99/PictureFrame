@@ -12,15 +12,19 @@ enum AppConfig {
 
     enum Lightroom {
         /// Adobe Developer Console 에서 발급받은 Client ID (API Key).
-        /// 실제 값으로 교체하세요. 비워두면 Lightroom 연동 화면에서 안내가 표시됩니다.
-        static let clientID = "YOUR_ADOBE_CLIENT_ID"
+        /// OAuth Native App(PKCE) 자격 증명이므로 client secret 이 없으며,
+        /// 이 ID 는 공개되어도 무방하다 (앱에 포함되는 공개 식별자).
+        static let clientID = "107a55d89a31478c84f2f0f313a4ab22"
 
-        /// OAuth 인증 후 앱으로 돌아오기 위한 커스텀 URL 스킴 기반 리디렉션 URI.
-        /// Info.plist 의 CFBundleURLSchemes 및 Adobe Console 설정과 반드시 일치해야 합니다.
-        static let redirectURI = "pictureframe://oauth/lightroom"
+        /// OAuth 인증 후 앱으로 돌아오기 위한 리디렉션 URI.
+        /// Adobe OAuth Native App 은 redirect URI 를 자동 생성하며,
+        /// 형식은 `adobe+<hash>://adobeid/<client_id>` 이다.
+        /// Info.plist 의 CFBundleURLSchemes 및 Adobe Console 설정과 반드시 일치해야 한다.
+        static let redirectURI = "adobe+fea1fa140a9c3f2ceeff3aeff353ce1efda56c0d://adobeid/107a55d89a31478c84f2f0f313a4ab22"
 
         /// 커스텀 스킴 (ASWebAuthenticationSession 콜백 매칭용).
-        static let callbackScheme = "pictureframe"
+        /// redirectURI 의 scheme 부분과 동일해야 한다.
+        static let callbackScheme = "adobe+fea1fa140a9c3f2ceeff3aeff353ce1efda56c0d"
 
         /// Adobe IMS / Lightroom API 엔드포인트.
         static let authorizeURL = "https://ims-na1.adobelogin.com/ims/authorize/v2"
@@ -28,7 +32,8 @@ enum AppConfig {
         static let apiBaseURL = "https://lr.adobe.io/v2"
 
         /// Lightroom 파트너 API 사용에 필요한 OAuth 스코프.
-        static let scopes = "openid,AdobeID,lr_partner_apis,offline_access"
+        /// lr_partner_rendition_apis 는 사진 렌디션(이미지) 다운로드에 필요하다.
+        static let scopes = "openid,AdobeID,lr_partner_apis,lr_partner_rendition_apis,offline_access"
 
         /// 자격 증명이 설정되었는지 여부.
         static var isConfigured: Bool {

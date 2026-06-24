@@ -18,7 +18,7 @@
 			<string>com.example.PictureFrame.lightroom</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>pictureframe</string>
+				<string>adobe+fea1fa140a9c3f2ceeff3aeff353ce1efda56c0d</string>
 			</array>
 		</dict>
 	</array>

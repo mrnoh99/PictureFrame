@@ -25,15 +25,24 @@ iOS 사진 앱의 특정 앨범과 Adobe Lightroom 사용자 앨범에서 사진
 
 1. [Adobe Developer Console](https://developer.adobe.com/console) 에서 새 프로젝트 생성
 2. **Lightroom Services API** 추가
-3. OAuth Redirect URI 에 `pictureframe://oauth/lightroom` 등록
-4. `PictureFrame/Config/AppConfig.swift` 의 `clientID` 를 발급받은 API Key 로 교체
+3. 자격 증명(Credential) 으로 **OAuth → Native App** 선택
+   - Native App 은 client secret 이 없고 PKCE 를 사용하므로 모바일 앱에 적합
+   - **Redirect URI 는 Adobe 가 자동 생성**한다 (`adobe+<hash>://adobeid/<client_id>` 형식)
+4. 생성된 값들을 `PictureFrame/Config/AppConfig.swift` 에 입력:
+   - `clientID` ← Client ID
+   - `redirectURI` ← Adobe 가 생성한 Redirect URI 전체
+   - `callbackScheme` ← Redirect URI 의 scheme 부분 (`adobe+<hash>`)
+5. `Info.plist` 의 `CFBundleURLSchemes` 를 위 `callbackScheme` 과 동일하게 설정
+6. Scopes 에 `lr_partner_apis` 와 **`lr_partner_rendition_apis`**(이미지 다운로드용) 포함 확인
 
 ```swift
-// AppConfig.swift
-enum Lightroom {
-    static let clientID = "YOUR_ADOBE_CLIENT_ID"  // ← 여기에 입력
-}
+// AppConfig.swift — Adobe Console 값으로 교체
+static let clientID      = "107a55d89a31478c84f2f0f313a4ab22"
+static let redirectURI   = "adobe+<hash>://adobeid/<client_id>"
+static let callbackScheme = "adobe+<hash>"
 ```
+
+> 💡 Client ID 와 Redirect URI 는 PKCE 기반 Native App 의 **공개 식별자**이며 client secret 이 아니므로 앱·저장소에 포함되어도 보안상 문제없다.
 
 ## 프로젝트 구조
 
