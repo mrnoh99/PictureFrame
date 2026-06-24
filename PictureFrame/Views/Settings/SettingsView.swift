@@ -1,6 +1,7 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
-/// 앨범 선택, 표시 모드, 슬라이드쇼·콜라주 옵션을 설정하는 화면.
+/// 앨범 선택, 표시 모드, 슬라이드쇼·콜라주·배경음악 옵션을 설정하는 화면.
 /// iPad 가로 모드에 맞춰 사이드바 + 디테일 형태의 Split View 로 구성.
 struct SettingsView: View {
     let photoLib: PhotoLibraryService
@@ -12,10 +13,12 @@ struct SettingsView: View {
     @State private var showAlbumPicker = false
     @State private var albumSource: PhotoSourceKind = .photoLibrary
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
+    @State private var showMusicImporter = false
+    @State private var musicImportError: String?
 
     /// 사이드바 항목.
     enum SettingsSection: String, CaseIterable, Identifiable, Hashable {
-        case albums, display, slideshow, collage, lightroom
+        case albums, display, slideshow, collage, music, lightroom
         var id: String { rawValue }
 
         var title: String {
@@ -24,6 +27,7 @@ struct SettingsView: View {
             case .display: return "표시 방식"
             case .slideshow: return "슬라이드쇼"
             case .collage: return "콜라주"
+            case .music: return "배경음악"
             case .lightroom: return "Lightroom 계정"
             }
         }
@@ -34,6 +38,7 @@ struct SettingsView: View {
             case .display: return "rectangle.3.group"
             case .slideshow: return "play.rectangle"
             case .collage: return "square.grid.2x2"
+            case .music: return "music.note"
             case .lightroom: return "camera.filters"
             }
         }
@@ -54,6 +59,14 @@ struct SettingsView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("완료") { dismiss() }
                 }
+            }
+            .safeAreaInset(edge: .bottom) {
+                Text("Developed by JaiSung NOH MD 2026")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(.bar)
             }
         } detail: {
             // MARK: 디테일
@@ -78,6 +91,7 @@ struct SettingsView: View {
         case .display:   displayDetail
         case .slideshow: slideshowDetail
         case .collage:   collageDetail
+        case .music:     musicDetail
         case .lightroom: lightroomDetail
         }
     }
@@ -172,13 +186,23 @@ struct SettingsView: View {
 
     private var slideshowDetail: some View {
         Form {
-            Section("전환") {
+            Section {
                 HStack {
                     Text("전환 간격")
                     Spacer()
                     Text("\(Int(settings.slideInterval))초").foregroundStyle(.secondary)
                 }
-                Slider(value: $settings.slideInterval, in: 3...30, step: 1)
+                Slider(value: $settings.slideInterval, in: 2...60, step: 1) {
+                    Text("전환 간격")
+                } minimumValueLabel: {
+                    Text("2초").font(.caption2)
+                } maximumValueLabel: {
+                    Text("60초").font(.caption2)
+                }
+            } header: {
+                Text("전환 속도")
+            } footer: {
+                Text("사진이 다음 장으로 넘어가는 간격입니다. (2초 ~ 60초)")
             }
             Section("효과") {
                 Toggle("Ken Burns 효과", isOn: $settings.kenBurnsEnabled)
@@ -202,6 +226,93 @@ struct SettingsView: View {
                 ), in: 2...9, step: 1)
             }
         }
+    }
+
+    // MARK: 배경음악
+
+    private var musicDetail: some View {
+        Form {
+            Section {
+                Toggle("배경음악 사용", isOn: $settings.musicEnabled)
+            } footer: {
+                Text("슬라이드쇼·콜라주 재생 중 음악이 반복 재생됩니다.")
+            }
+
+            if settings.musicEnabled {
+                Section("볼륨") {
+                    HStack {
+                        Image(systemName: "speaker.fill").foregroundStyle(.secondary)
+                        Slider(value: $settings.musicVolume, in: 0...1)
+                        Image(systemName: "speaker.wave.3.fill").foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            Section("재생 목록") {
+                if settings.musicTracks.isEmpty {
+                    Text("추가된 음악이 없습니다")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(settings.musicTracks, id: \.self) { track in
+                        Label(track, systemImage: "music.note")
+                    }
+                    .onDelete(perform: deleteTracks)
+                }
+
+                Button {
+                    showMusicImporter = true
+                } label: {
+                    Label("음악 추가", systemImage: "plus.circle.fill")
+                }
+            }
+
+            if let musicImportError {
+                Section {
+                    Text(musicImportError).font(.caption).foregroundStyle(.red)
+                }
+            }
+        }
+        .fileImporter(
+            isPresented: $showMusicImporter,
+            allowedContentTypes: [.audio],
+            allowsMultipleSelection: true
+        ) { result in
+            importMusic(result)
+        }
+    }
+
+    private func importMusic(_ result: Result<[URL], Error>) {
+        musicImportError = nil
+        do {
+            let urls = try result.get()
+            let fm = FileManager.default
+            for src in urls {
+                // 보안 스코프 자원 접근(외부 Files 위치).
+                let needsScope = src.startAccessingSecurityScopedResource()
+                defer { if needsScope { src.stopAccessingSecurityScopedResource() } }
+
+                let dest = SettingsStore.musicDirectory.appendingPathComponent(src.lastPathComponent)
+                if fm.fileExists(atPath: dest.path) {
+                    try? fm.removeItem(at: dest)
+                }
+                try fm.copyItem(at: src, to: dest)
+
+                if !settings.musicTracks.contains(src.lastPathComponent) {
+                    settings.musicTracks.append(src.lastPathComponent)
+                }
+            }
+        } catch {
+            musicImportError = "음악을 가져오지 못했습니다: \(error.localizedDescription)"
+        }
+    }
+
+    private func deleteTracks(at offsets: IndexSet) {
+        let fm = FileManager.default
+        for i in offsets {
+            let name = settings.musicTracks[i]
+            try? fm.removeItem(at: SettingsStore.musicDirectory.appendingPathComponent(name))
+        }
+        settings.musicTracks.remove(atOffsets: offsets)
     }
 
     // MARK: Lightroom 계정

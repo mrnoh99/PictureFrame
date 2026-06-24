@@ -33,6 +33,36 @@ final class SettingsStore: ObservableObject {
         didSet { UserDefaults.standard.set(collageCount, forKey: "collageCount") }
     }
 
+    // MARK: - 배경음악 설정
+
+    /// 배경음악 사용 여부.
+    @Published var musicEnabled: Bool {
+        didSet { UserDefaults.standard.set(musicEnabled, forKey: "musicEnabled") }
+    }
+
+    /// 배경음악 볼륨 (0.0 ~ 1.0).
+    @Published var musicVolume: Double {
+        didSet { UserDefaults.standard.set(musicVolume, forKey: "musicVolume") }
+    }
+
+    /// 가져온 음악 파일명 목록 (앱 Documents/Music 디렉터리 기준).
+    @Published var musicTracks: [String] {
+        didSet { save(musicTracks, key: "musicTracks") }
+    }
+
+    /// 음악 파일이 저장되는 디렉터리 (Documents/Music).
+    static let musicDirectory: URL = {
+        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let dir = docs.appendingPathComponent("Music", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
+    }()
+
+    /// 재생 가능한 음악 파일 URL 목록.
+    var musicURLs: [URL] {
+        musicTracks.map { Self.musicDirectory.appendingPathComponent($0) }
+    }
+
     // MARK: - 초기화
 
     init() {
@@ -42,6 +72,9 @@ final class SettingsStore: ObservableObject {
         slideInterval = defaults.double(forKey: "slideInterval").nonZero ?? AppConfig.defaultSlideInterval
         kenBurnsEnabled = defaults.object(forKey: "kenBurnsEnabled") as? Bool ?? true
         collageCount = defaults.integer(forKey: "collageCount").nonZero ?? 4
+        musicEnabled = defaults.object(forKey: "musicEnabled") as? Bool ?? false
+        musicVolume = defaults.object(forKey: "musicVolume") as? Double ?? 0.6
+        musicTracks = Self.load(key: "musicTracks") ?? []
     }
 
     // MARK: - 헬퍼

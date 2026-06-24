@@ -1,13 +1,18 @@
 import SwiftUI
 
-/// 여러 사진을 모자이크 콜라주 레이아웃으로 한 화면에 보여준다.
-/// 사진 수(collageCount)에 따라 자동으로 레이아웃이 바뀐다.
+/// 여러 사진을 창의적인 콜라주 레이아웃으로 한 화면에 보여준다.
+/// 같은 사진 수라도 장면마다 다른 배치(템플릿)가 번갈아 나와 사진 앱 PLAY 처럼 다채롭다.
 struct CollageView: View {
     @ObservedObject var viewModel: FrameViewModel
     @EnvironmentObject private var settings: SettingsStore
 
     private var photos: [FramePhoto] {
         viewModel.collageBatch(count: settings.collageCount)
+    }
+
+    /// 현재 장면에 사용할 템플릿 — currentIndex 에 따라 변형이 순환한다.
+    private var template: CollageTemplate {
+        CollageLayouts.template(count: photos.count, variant: viewModel.currentIndex)
     }
 
     var body: some View {
@@ -17,101 +22,44 @@ struct CollageView: View {
             if photos.isEmpty {
                 ProgressView().tint(.white)
             } else {
-                collageLayout(for: photos)
-                    .onTapGesture(count: 2) {
-                        withAnimation(.easeInOut(duration: 0.4)) {
-                            viewModel.advance()
+                GeometryReader { geo in
+                    ZStack(alignment: .topLeading) {
+                        ForEach(Array(zip(photos.indices, photos)), id: \.1.id) { index, photo in
+                            let cell = cellRect(at: index, in: geo.size)
+                            AsyncPhotoView(photo: photo, contentMode: .fill, viewModel: viewModel)
+                                .frame(width: cell.width, height: cell.height)
+                                .clipped()
+                                .offset(x: cell.minX, y: cell.minY)
+                                .transition(.opacity.combined(with: .scale(scale: 0.96)))
                         }
                     }
+                    .animation(.easeInOut(duration: 0.6), value: viewModel.currentIndex)
+                }
+                .ignoresSafeArea()
+                .contentShape(Rectangle())
+                .onTapGesture(count: 2) {
+                    withAnimation(.easeInOut(duration: 0.5)) {
+                        viewModel.advance(by: settings.collageCount)
+                    }
+                }
             }
         }
         .ignoresSafeArea()
-        .onAppear { viewModel.startSlideTimer() }
+        .onAppear { viewModel.startSlideTimer(step: settings.collageCount) }
         .onDisappear { viewModel.stopSlideTimer() }
     }
 
-    @ViewBuilder
-    private func collageLayout(for photos: [FramePhoto]) -> some View {
-        switch photos.count {
-        case 1:
-            singlePhoto(photos[0])
-        case 2:
-            HStack(spacing: 2) {
-                photoCell(photos[0])
-                photoCell(photos[1])
-            }
-        case 3:
-            layout3(photos)
-        case 4:
-            layout4(photos)
-        case 5:
-            layout5(photos)
-        default:
-            layout6Plus(photos)
-        }
-    }
-
-    // MARK: - 레이아웃 변형
-
-    private func singlePhoto(_ photo: FramePhoto) -> some View {
-        photoCell(photo)
-    }
-
-    private func layout3(_ photos: [FramePhoto]) -> some View {
-        HStack(spacing: 2) {
-            photoCell(photos[0])
-            VStack(spacing: 2) {
-                photoCell(photos[1])
-                photoCell(photos[2])
-            }
-        }
-    }
-
-    private func layout4(_ photos: [FramePhoto]) -> some View {
-        VStack(spacing: 2) {
-            HStack(spacing: 2) {
-                photoCell(photos[0])
-                photoCell(photos[1])
-            }
-            HStack(spacing: 2) {
-                photoCell(photos[2])
-                photoCell(photos[3])
-            }
-        }
-    }
-
-    private func layout5(_ photos: [FramePhoto]) -> some View {
-        VStack(spacing: 2) {
-            HStack(spacing: 2) {
-                photoCell(photos[0])
-                photoCell(photos[1])
-            }
-            HStack(spacing: 2) {
-                photoCell(photos[2])
-                photoCell(photos[3])
-                photoCell(photos[4])
-            }
-        }
-    }
-
-    private func layout6Plus(_ photos: [FramePhoto]) -> some View {
-        let half = photos.count / 2
-        let top = Array(photos.prefix(half))
-        let bottom = Array(photos.suffix(from: half))
-        return VStack(spacing: 2) {
-            HStack(spacing: 2) {
-                ForEach(top) { photoCell($0) }
-            }
-            HStack(spacing: 2) {
-                ForEach(bottom) { photoCell($0) }
-            }
-        }
-    }
-
-    // MARK: - 개별 셀
-
-    private func photoCell(_ photo: FramePhoto) -> some View {
-        AsyncPhotoView(photo: photo, contentMode: .fill, viewModel: viewModel)
-            .clipped()
+    /// 단위 좌표 셀을 실제 픽셀 사각형으로 변환(2pt 간격 적용).
+    private func cellRect(at index: Int, in size: CGSize) -> CGRect {
+        let cells = template.cells
+        guard cells.indices.contains(index) else { return .zero }
+        let unit = cells[index]
+        let gap: CGFloat = 2
+        return CGRect(
+            x: unit.minX * size.width + gap / 2,
+            y: unit.minY * size.height + gap / 2,
+            width: unit.width * size.width - gap,
+            height: unit.height * size.height - gap
+        )
     }
 }
