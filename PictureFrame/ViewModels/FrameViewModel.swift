@@ -87,8 +87,16 @@ final class FrameViewModel: ObservableObject {
     // MARK: - 이미지 로드
 
     func loadImage(for photo: FramePhoto, targetSize: CGSize) async -> UIImage? {
+        // 캐시 우선 조회 (반복 표시 시 재다운로드 방지).
+        if let cached = ImageCache.shared.image(for: photo.id, size: targetSize) {
+            return cached
+        }
         let provider: PhotoProvider = photo.source == .photoLibrary ? photoLib : lightroom
-        return try? await provider.loadImage(for: photo, targetSize: targetSize)
+        guard let image = try? await provider.loadImage(for: photo, targetSize: targetSize) else {
+            return nil
+        }
+        ImageCache.shared.store(image, for: photo.id, size: targetSize)
+        return image
     }
 
     // MARK: - 콜라주용 사진 슬라이스

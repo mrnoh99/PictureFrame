@@ -19,7 +19,7 @@ final class LightroomService: PhotoProvider {
     // MARK: - 앨범
 
     func fetchAlbums() async throws -> [Album] {
-        guard auth.isAuthenticated else { throw PhotoProviderError.notAuthenticated }
+        guard await auth.isAuthenticated else { throw PhotoProviderError.notAuthenticated }
         let catalog = try await api.fetchCatalog()
         let lrAlbums = try await api.fetchAlbums(catalogID: catalog.id)
         return lrAlbums.map { lrAlbum in
@@ -35,7 +35,7 @@ final class LightroomService: PhotoProvider {
     // MARK: - 사진
 
     func fetchPhotos(in selection: AlbumSelection) async throws -> [FramePhoto] {
-        guard auth.isAuthenticated else { throw PhotoProviderError.notAuthenticated }
+        guard await auth.isAuthenticated else { throw PhotoProviderError.notAuthenticated }
         let catalogID = selection.catalogID ?? (try await api.fetchCatalog().id)
         let assets = try await api.fetchAssets(catalogID: catalogID, albumID: selection.albumID)
 

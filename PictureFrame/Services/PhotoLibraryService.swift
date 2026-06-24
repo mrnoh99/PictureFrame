@@ -139,7 +139,7 @@ final class PhotoLibraryService: PhotoProvider {
         options.deliveryMode = .highQualityFormat
         options.resizeMode = .fast
 
-        let scale = UIScreen.main.scale
+        let scale = await MainActor.run { UIScreen.main.scale }
         let pixelSize = CGSize(width: targetSize.width * scale, height: targetSize.height * scale)
 
         return try await withCheckedThrowingContinuation { continuation in

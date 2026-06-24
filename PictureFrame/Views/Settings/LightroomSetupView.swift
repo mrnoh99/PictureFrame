@@ -18,22 +18,12 @@ struct LightroomSetupView: View {
                         .foregroundStyle(.accent)
                     Text("Adobe Lightroom 연동")
                         .font(.title2.bold())
-                    Text("Lightroom 앨범의 사진을 액자에 표시하려면 Adobe Developer Console 에서 Client ID 를 발급받아 설정해야 합니다.")
-                        .foregroundStyle(.secondary)
                 }
 
-                Divider()
-
-                // 단계별 안내
-                VStack(alignment: .leading, spacing: 16) {
-                    SetupStep(number: 1, title: "Adobe Developer Console 접속",
-                              detail: "developer.adobe.com/console 에서 새 프로젝트를 만드세요.")
-                    SetupStep(number: 2, title: "Lightroom Services API 추가",
-                              detail: "프로젝트 > Add API > Creative Cloud > Lightroom Services API 를 선택하세요.")
-                    SetupStep(number: 3, title: "OAuth 리디렉션 URI 등록",
-                              detail: "Redirect URI 에 다음을 추가하세요:\n\(AppConfig.Lightroom.redirectURI)")
-                    SetupStep(number: 4, title: "Client ID 입력",
-                              detail: "발급받은 API Key (Client ID) 를 AppConfig.swift 의 clientID 에 넣으세요.")
+                if AppConfig.Lightroom.isConfigured {
+                    connectionStatus
+                } else {
+                    setupGuide
                 }
 
                 if let error {
@@ -44,27 +34,87 @@ struct LightroomSetupView: View {
                         .background(.red.opacity(0.1), in: RoundedRectangle(cornerRadius: 8))
                 }
 
-                if AppConfig.Lightroom.isConfigured {
-                    Button {
-                        Task { await signIn() }
-                    } label: {
-                        Group {
-                            if isSigningIn {
-                                ProgressView()
-                            } else {
-                                Text(lightroomAuth.isAuthenticated ? "다시 로그인" : "Adobe 계정으로 로그인")
-                            }
-                        }
-                        .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(isSigningIn)
-                }
+                actionButtons
             }
             .padding()
         }
         .navigationTitle("Lightroom 설정")
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    // MARK: - 연결 상태 (설정 완료 시)
+
+    private var connectionStatus: some View {
+        HStack(spacing: 12) {
+            Image(systemName: lightroomAuth.isAuthenticated ? "checkmark.circle.fill" : "person.crop.circle.badge.questionmark")
+                .font(.title2)
+                .foregroundStyle(lightroomAuth.isAuthenticated ? .green : .orange)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(lightroomAuth.isAuthenticated ? "Adobe 계정에 연결됨" : "로그인 필요")
+                    .font(.headline)
+                Text(lightroomAuth.isAuthenticated
+                     ? "Lightroom 앨범을 불러올 수 있습니다."
+                     : "Adobe 계정으로 로그인하면 앨범을 선택할 수 있습니다.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+        }
+        .padding()
+        .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 12))
+    }
+
+    // MARK: - 설정 안내 (미설정 시)
+
+    private var setupGuide: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Lightroom 앨범의 사진을 액자에 표시하려면 Adobe Developer Console 에서 OAuth Native App 자격 증명을 발급받아 설정해야 합니다.")
+                .foregroundStyle(.secondary)
+
+            Divider()
+
+            SetupStep(number: 1, title: "Adobe Developer Console 접속",
+                      detail: "developer.adobe.com/console 에서 새 프로젝트를 만드세요.")
+            SetupStep(number: 2, title: "Lightroom Services API 추가",
+                      detail: "프로젝트 > Add API > Creative Cloud > Lightroom Services API 를 선택하세요.")
+            SetupStep(number: 3, title: "OAuth Native App 자격 증명 생성",
+                      detail: "Redirect URI 는 Adobe 가 자동 생성합니다 (adobe+<hash>://adobeid/<client_id>).")
+            SetupStep(number: 4, title: "AppConfig.swift 에 값 입력",
+                      detail: "clientID, redirectURI, callbackScheme 을 발급된 값으로 설정하세요.")
+        }
+    }
+
+    // MARK: - 액션 버튼
+
+    @ViewBuilder
+    private var actionButtons: some View {
+        if AppConfig.Lightroom.isConfigured {
+            VStack(spacing: 12) {
+                Button {
+                    Task { await signIn() }
+                } label: {
+                    Group {
+                        if isSigningIn {
+                            ProgressView()
+                        } else {
+                            Text(lightroomAuth.isAuthenticated ? "다시 로그인" : "Adobe 계정으로 로그인")
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(isSigningIn)
+
+                if lightroomAuth.isAuthenticated {
+                    Button(role: .destructive) {
+                        lightroomAuth.signOut()
+                    } label: {
+                        Text("로그아웃").frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                }
+            }
+        }
     }
 
     private func signIn() async {

@@ -17,8 +17,8 @@ final class LightroomAPIClient {
 
     func fetchCatalog() async throws -> LightroomCatalog {
         let data = try await get(path: "/catalog")
-        let json = try Self.stripAndDecode(data, as: CatalogWrapper.self)
-        return json.catalog
+        // /v2/catalog 는 카탈로그 객체를 래퍼 없이 직접 반환한다.
+        return try Self.stripAndDecode(data, as: LightroomCatalog.self)
     }
 
     // MARK: - 앨범
@@ -66,7 +66,7 @@ final class LightroomAPIClient {
     }
 
     func downloadImage(catalogID: String, assetID: String, targetSize: CGSize) async throws -> UIImage {
-        let scale = UIScreen.main.scale
+        let scale = await MainActor.run { UIScreen.main.scale }
         let maxDim = max(targetSize.width, targetSize.height) * scale
         // 유효한 렌디션 크기로만 매핑 (320 같은 비표준 크기는 404 를 유발).
         let renditionSize: String
@@ -134,10 +134,4 @@ final class LightroomAPIClient {
         }
         return try JSONDecoder().decode(type, from: cleaned)
     }
-}
-
-// MARK: - 내부 래퍼
-
-private struct CatalogWrapper: Decodable {
-    let catalog: LightroomCatalog
 }

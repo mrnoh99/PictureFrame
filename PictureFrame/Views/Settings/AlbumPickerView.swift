@@ -76,7 +76,7 @@ struct AlbumPickerView: View {
                     error = "Lightroom Client ID 가 설정되지 않았습니다."
                     return
                 }
-                if !lightroomAuth.isAuthenticated {
+                if !(await lightroomAuth.isAuthenticated) {
                     try await lightroomAuth.signIn()
                 }
                 let service = LightroomService(auth: lightroomAuth)
