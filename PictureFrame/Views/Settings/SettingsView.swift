@@ -18,7 +18,7 @@ struct SettingsView: View {
 
     /// 사이드바 항목.
     enum SettingsSection: String, CaseIterable, Identifiable, Hashable {
-        case albums, display, slideshow, collage, music, lightroom
+        case albums, display, slideshow, collage, music, overlay, lightroom
         var id: String { rawValue }
 
         var title: String {
@@ -28,6 +28,7 @@ struct SettingsView: View {
             case .slideshow: return "슬라이드쇼"
             case .collage: return "콜라주"
             case .music: return "배경음악"
+            case .overlay: return "위젯 오버레이"
             case .lightroom: return "Lightroom 계정"
             }
         }
@@ -39,6 +40,7 @@ struct SettingsView: View {
             case .slideshow: return "play.rectangle"
             case .collage: return "square.grid.2x2"
             case .music: return "music.note"
+            case .overlay: return "clock"
             case .lightroom: return "camera.filters"
             }
         }
@@ -92,7 +94,23 @@ struct SettingsView: View {
         case .slideshow: slideshowDetail
         case .collage:   collageDetail
         case .music:     musicDetail
+        case .overlay:   overlayDetail
         case .lightroom: lightroomDetail
+        }
+    }
+
+    // MARK: 위젯 오버레이
+
+    private var overlayDetail: some View {
+        Form {
+            Section {
+                Toggle("시계·날짜 표시", isOn: $settings.showClock)
+                Toggle("날씨 표시", isOn: $settings.showWeather)
+            } header: {
+                Text("오버레이")
+            } footer: {
+                Text("액자 화면 위에 시계와 날씨를 표시합니다. 날씨는 위치 권한과 WeatherKit 설정이 필요하며, 사용할 수 없으면 자동으로 숨겨집니다.")
+            }
         }
     }
 
@@ -203,6 +221,14 @@ struct SettingsView: View {
                 Text("전환 속도")
             } footer: {
                 Text("사진이 다음 장으로 넘어가는 간격입니다. (2초 ~ 60초)")
+            }
+            Section("전환 효과") {
+                Picker("전환 효과", selection: $settings.slideTransition) {
+                    ForEach(SlideTransition.allCases) { transition in
+                        Text(transition.displayName).tag(transition)
+                    }
+                }
+                .pickerStyle(.menu)
             }
             Section("효과") {
                 Toggle("Ken Burns 효과", isOn: $settings.kenBurnsEnabled)

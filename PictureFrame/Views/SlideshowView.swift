@@ -21,10 +21,11 @@ struct SlideshowView: View {
                     duration: settings.slideInterval,
                     sequence: viewModel.currentIndex
                 )
-                .id(viewModel.currentIndex)  // ID 변경 시 뷰 교체 → 크로스페이드
-                .transition(.opacity.animation(.easeInOut(duration: 0.8)))
+                .id(viewModel.currentIndex)  // ID 변경 시 뷰 교체 → 전환 효과 적용
+                .transition(settings.slideTransition.swiftUITransition(index: viewModel.currentIndex))
             }
         }
+        .animation(.easeInOut(duration: 0.8), value: viewModel.currentIndex)
         .gesture(swipeGesture)
         .onAppear { viewModel.startSlideTimer() }
         .onDisappear { viewModel.stopSlideTimer() }

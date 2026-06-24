@@ -26,6 +26,11 @@ final class SettingsStore: ObservableObject {
         didSet { UserDefaults.standard.set(kenBurnsEnabled, forKey: "kenBurnsEnabled") }
     }
 
+    /// 사진 전환 효과.
+    @Published var slideTransition: SlideTransition {
+        didSet { UserDefaults.standard.set(slideTransition.rawValue, forKey: "slideTransition") }
+    }
+
     // MARK: - 콜라주 설정
 
     /// 콜라주 한 화면에 표시할 사진 수 (2~9).
@@ -50,6 +55,18 @@ final class SettingsStore: ObservableObject {
         didSet { save(musicTracks, key: "musicTracks") }
     }
 
+    // MARK: - 오버레이(위젯) 설정
+
+    /// 시계/날짜 오버레이 표시 여부.
+    @Published var showClock: Bool {
+        didSet { UserDefaults.standard.set(showClock, forKey: "showClock") }
+    }
+
+    /// 날씨 오버레이 표시 여부.
+    @Published var showWeather: Bool {
+        didSet { UserDefaults.standard.set(showWeather, forKey: "showWeather") }
+    }
+
     /// 음악 파일이 저장되는 디렉터리 (Documents/Music).
     static let musicDirectory: URL = {
         let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
@@ -71,10 +88,13 @@ final class SettingsStore: ObservableObject {
         displayMode = DisplayMode(rawValue: defaults.string(forKey: "displayMode") ?? "") ?? .slideshow
         slideInterval = defaults.double(forKey: "slideInterval").nonZero ?? AppConfig.defaultSlideInterval
         kenBurnsEnabled = defaults.object(forKey: "kenBurnsEnabled") as? Bool ?? true
+        slideTransition = SlideTransition(rawValue: defaults.string(forKey: "slideTransition") ?? "") ?? .crossfade
         collageCount = defaults.integer(forKey: "collageCount").nonZero ?? 4
         musicEnabled = defaults.object(forKey: "musicEnabled") as? Bool ?? false
         musicVolume = defaults.object(forKey: "musicVolume") as? Double ?? 0.6
         musicTracks = Self.load(key: "musicTracks") ?? []
+        showClock = defaults.object(forKey: "showClock") as? Bool ?? false
+        showWeather = defaults.object(forKey: "showWeather") as? Bool ?? false
     }
 
     // MARK: - 헬퍼

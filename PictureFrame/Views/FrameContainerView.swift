@@ -4,6 +4,7 @@ import SwiftUI
 struct FrameContainerView: View {
     @StateObject var viewModel: FrameViewModel
     @EnvironmentObject private var settings: SettingsStore
+    @EnvironmentObject private var weather: WeatherProvider
 
     var body: some View {
         Group {
@@ -19,7 +20,13 @@ struct FrameContainerView: View {
                 }
             }
         }
+        .overlay(alignment: .topLeading) {
+            WidgetOverlayView()
+        }
         .task { await viewModel.reload() }
+        .task(id: settings.showWeather) {
+            if settings.showWeather { weather.start() }
+        }
         .overlay(alignment: .bottom) {
             if let error = viewModel.errorMessage {
                 Text(error)
