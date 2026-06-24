@@ -28,7 +28,7 @@ struct RootView: View {
                 .padding()
             }
         }
-        .sheet(isPresented: $showSettings) {
+        .fullScreenCover(isPresented: $showSettings) {
             SettingsView(photoLib: photoLib)
         }
         .ignoresSafeArea()
