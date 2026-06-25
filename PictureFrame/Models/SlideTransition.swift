@@ -82,7 +82,7 @@ enum SlideTransition: String, CaseIterable, Codable, Identifiable {
                 removal: .move(edge: .bottom).combined(with: .opacity)
             )
         case .blur:
-            return .blurReplace
+            return .blurFade
         case .flip:
             return .flip3D
         case .mixed:
@@ -105,6 +105,29 @@ enum SlideTransition: String, CaseIterable, Codable, Identifiable {
         x = (x &* 0x9E3779B97F4A7C15) ^ (x >> 29)
         let pick = effects[Int(x % UInt64(effects.count))]
         return pick.swiftUITransition(index: index)
+    }
+}
+
+// MARK: - 블러 전환
+
+extension AnyTransition {
+    /// 흐려졌다가 선명해지며 바뀌는 블러 페이드 전환(모든 iOS 버전 호환).
+    static var blurFade: AnyTransition {
+        .modifier(
+            active: BlurModifier(radius: 22),
+            identity: BlurModifier(radius: 0)
+        )
+    }
+}
+
+/// 블러 + 페이드를 적용하는 전환용 모디파이어.
+private struct BlurModifier: ViewModifier {
+    let radius: CGFloat
+
+    func body(content: Content) -> some View {
+        content
+            .blur(radius: radius)
+            .opacity(radius == 0 ? 1 : 0)
     }
 }
 
