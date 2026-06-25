@@ -72,6 +72,10 @@ struct AlbumPickerView: View {
             case .photoLibrary:
                 albums = try await photoLib.fetchAlbums()
             case .lightroom:
+                guard !AppConfig.Lightroom.partnerApprovalPending else {
+                    error = "Adobe Lightroom 파트너 API 승인 대기 중입니다. 승인 후 사용할 수 있습니다."
+                    return
+                }
                 guard AppConfig.Lightroom.isConfigured else {
                     error = "Lightroom Client ID 가 설정되지 않았습니다."
                     return

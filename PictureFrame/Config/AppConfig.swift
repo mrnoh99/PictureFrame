@@ -39,6 +39,11 @@ enum AppConfig {
         static var isConfigured: Bool {
             !clientID.isEmpty && clientID != "YOUR_ADOBE_CLIENT_ID"
         }
+
+        /// Adobe Lightroom 파트너 API 승인 대기 상태.
+        /// `lr_partner_apis` 는 Adobe 의 파트너 승인이 있어야 인증이 가능하다.
+        /// 승인이 완료되면 false 로 바꾸면 정상 로그인/앨범 조회가 활성화된다.
+        static let partnerApprovalPending = true
     }
 
     /// 슬라이드쇼 기본 전환 간격(초).

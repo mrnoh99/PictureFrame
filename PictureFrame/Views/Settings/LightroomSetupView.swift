@@ -20,7 +20,9 @@ struct LightroomSetupView: View {
                         .font(.title2.bold())
                 }
 
-                if AppConfig.Lightroom.isConfigured {
+                if AppConfig.Lightroom.partnerApprovalPending {
+                    pendingApprovalCard
+                } else if AppConfig.Lightroom.isConfigured {
                     connectionStatus
                 } else {
                     setupGuide
@@ -40,6 +42,39 @@ struct LightroomSetupView: View {
         }
         .navigationTitle("Lightroom 설정")
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    // MARK: - 파트너 승인 대기 상태
+
+    private var pendingApprovalCard: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(spacing: 12) {
+                Image(systemName: "clock.badge.exclamationmark")
+                    .font(.title)
+                    .foregroundStyle(.orange)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Adobe 파트너 승인 대기 중")
+                        .font(.headline)
+                    Text("Lightroom 연동은 Adobe의 파트너 API 승인 후 사용할 수 있습니다.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+            }
+            .padding()
+            .background(.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 14))
+
+            VStack(alignment: .leading, spacing: 10) {
+                Label("지금 사용 가능한 방법", systemImage: "lightbulb")
+                    .font(.subheadline.bold())
+                Text("• **iOS 사진 앨범**은 지금 바로 사용할 수 있습니다.\n• Lightroom 사진은 Lightroom 앱에서 기기 사진 앨범으로 내보낸 뒤, 해당 앨범을 추가해 표시할 수 있습니다.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding()
+            .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 14))
+        }
     }
 
     // MARK: - 연결 상태 (설정 완료 시)
@@ -88,7 +123,7 @@ struct LightroomSetupView: View {
 
     @ViewBuilder
     private var actionButtons: some View {
-        if AppConfig.Lightroom.isConfigured {
+        if AppConfig.Lightroom.isConfigured && !AppConfig.Lightroom.partnerApprovalPending {
             VStack(spacing: 12) {
                 Button {
                     Task { await signIn() }

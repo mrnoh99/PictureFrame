@@ -151,7 +151,14 @@ struct SettingsView: View {
                     Label("iOS 사진 앨범", systemImage: "photo.on.rectangle")
                 }
 
-                if AppConfig.Lightroom.isConfigured {
+                if AppConfig.Lightroom.partnerApprovalPending {
+                    Button {
+                        selection = .lightroom
+                    } label: {
+                        Label("Lightroom (승인 대기 중)", systemImage: "clock.badge.exclamationmark")
+                            .foregroundStyle(.orange)
+                    }
+                } else if AppConfig.Lightroom.isConfigured {
                     Button {
                         albumSource = .lightroom
                         showAlbumPicker = true
