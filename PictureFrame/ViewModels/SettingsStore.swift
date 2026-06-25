@@ -85,14 +85,14 @@ final class SettingsStore: ObservableObject {
         didSet { UserDefaults.standard.set(collageRangeMax, forKey: "collageRangeMax") }
     }
 
-    /// 콜라주 사진 채움 방식(블러 배경 / 비율 맞춤).
-    @Published var collageFitStyle: CollageFitStyle {
-        didSet { UserDefaults.standard.set(collageFitStyle.rawValue, forKey: "collageFitStyle") }
-    }
-
-    /// 슬라이드쇼 사진 채움 방식(블러 배경 / 비율 맞춤).
+    /// 사진 채움 방식(블러 배경 / 비율 맞춤). 한 장씩·콜라주 모두에 적용.
     @Published var slideshowFitStyle: CollageFitStyle {
         didSet { UserDefaults.standard.set(slideshowFitStyle.rawValue, forKey: "slideshowFitStyle") }
+    }
+
+    /// 한 장씩 슬라이드쇼인지 여부(장수 고정 = 1장). 그 외에는 콜라주 형태로 재생.
+    var isSinglePhotoShow: Bool {
+        collageCountMode == .fixed && collageCount == 1
     }
 
     /// 주어진 장면(scene)에 사용할 콜라주 사진 수.
@@ -169,7 +169,6 @@ final class SettingsStore: ObservableObject {
         collageCount = defaults.integer(forKey: "collageCount").nonZero ?? 4
         collageRangeMin = defaults.integer(forKey: "collageRangeMin").nonZero ?? 3
         collageRangeMax = defaults.integer(forKey: "collageRangeMax").nonZero ?? 6
-        collageFitStyle = CollageFitStyle(rawValue: defaults.string(forKey: "collageFitStyle") ?? "") ?? .blurFill
         slideshowFitStyle = CollageFitStyle(rawValue: defaults.string(forKey: "slideshowFitStyle") ?? "") ?? .blurFill
         musicEnabled = defaults.object(forKey: "musicEnabled") as? Bool ?? false
         musicVolume = defaults.object(forKey: "musicVolume") as? Double ?? 0.6

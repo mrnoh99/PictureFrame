@@ -14,8 +14,14 @@ struct FrameContainerView: View {
                 emptyView
             } else {
                 switch settings.displayMode {
-                case .slideshow: SlideshowView(viewModel: viewModel)
-                case .collage:   CollageView(viewModel: viewModel)
+                case .slideshow:
+                    // 장수 1장 = 한 장씩 슬라이드쇼, 2장 이상 = 콜라주 형태.
+                    if settings.isSinglePhotoShow {
+                        SlideshowView(viewModel: viewModel)
+                    } else {
+                        CollageView(viewModel: viewModel)
+                    }
+                case .collage:   CollageView(viewModel: viewModel)   // 과거 설정 호환
                 case .grid:      GridGalleryView(viewModel: viewModel)
                 }
             }

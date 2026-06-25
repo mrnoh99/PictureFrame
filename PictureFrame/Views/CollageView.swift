@@ -58,7 +58,7 @@ struct CollageView: View {
     /// 한 사진을 표시할 셀 뷰 — 채움 방식에 따라 달라진다.
     @ViewBuilder
     private func collageCell(for photo: FramePhoto) -> some View {
-        switch settings.collageFitStyle {
+        switch settings.slideshowFitStyle {
         case .blurFill:
             // 사진 전체(.fit) + 남는 여백은 블러 배경으로 채움.
             BlurFillPhotoView(photo: photo, viewModel: viewModel)
@@ -70,7 +70,7 @@ struct CollageView: View {
 
     /// 채움 방식에 맞는 각 사진의 픽셀 사각형 배열.
     private func layoutRects(in size: CGSize) -> [CGRect] {
-        switch settings.collageFitStyle {
+        switch settings.slideshowFitStyle {
         case .blurFill:
             return (0..<photos.count).map { cellRect(at: $0, in: size) }
         case .aspect:

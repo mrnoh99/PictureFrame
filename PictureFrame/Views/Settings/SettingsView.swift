@@ -32,7 +32,7 @@ struct SettingsView: View {
             switch self {
             case .albums: return "앨범 소스"
             case .display: return "표시 방식"
-            case .slideshow: return "슬라이드쇼"
+            case .slideshow: return "슬라이드쇼·콜라주"
             case .collage: return "콜라주"
             case .music: return "배경음악"
             case .overlay: return "위젯 오버레이"
@@ -70,12 +70,27 @@ struct SettingsView: View {
                 }
             }
             .safeAreaInset(edge: .bottom) {
-                Text("Developed by JaiSung NOH MD 2026")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                    .background(.bar)
+                VStack(spacing: 8) {
+                    Button {
+                        dismiss()
+                    } label: {
+                        Label("쇼 시작", systemImage: "play.fill")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 6)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(settings.selectedAlbums.isEmpty)
+                    .padding(.horizontal)
+
+                    Text("Developed by JaiSung NOH MD 2026")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.bottom, 8)
+                }
+                .padding(.top, 8)
+                .background(.bar)
             }
         } detail: {
             // MARK: 디테일
@@ -99,7 +114,7 @@ struct SettingsView: View {
         case .albums:    albumsDetail
         case .display:   displayDetail
         case .slideshow: slideshowDetail
-        case .collage:   displayDetail   // 콜라주 설정은 표시 방식 화면에 통합됨
+        case .collage:   slideshowDetail   // 콜라주는 슬라이드쇼(장수)에 통합됨
         case .music:     musicDetail
         case .overlay:   overlayDetail
         case .lightroom: lightroomDetail
@@ -250,7 +265,7 @@ struct SettingsView: View {
         Form {
             Section("표시 방식") {
                 Picker("모드", selection: $settings.displayMode) {
-                    ForEach(DisplayMode.allCases) { mode in
+                    ForEach(DisplayMode.selectableCases) { mode in
                         Label(mode.displayName, systemImage: mode.systemImage).tag(mode)
                     }
                 }
@@ -263,19 +278,14 @@ struct SettingsView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-
-            // 콜라주를 선택했을 때만 콜라주 장수 설정이 나타난다.
-            if settings.displayMode == .collage {
-                collageSettingsSections
-            }
         }
     }
 
-    // MARK: 콜라주 설정(표시 방식 = 콜라주일 때 노출)
+    // MARK: 쇼(슬라이드쇼/콜라주) 장수·채움 설정
 
     @ViewBuilder
-    private var collageSettingsSections: some View {
-        Section("콜라주 장수") {
+    private var showCountSections: some View {
+        Section {
             Picker("장수 방식", selection: $settings.collageCountMode) {
                 ForEach(CollageCountMode.allCases) { mode in
                     Text(mode.displayName).tag(mode)
@@ -285,14 +295,14 @@ struct SettingsView: View {
 
             if settings.collageCountMode == .fixed {
                 HStack {
-                    Text("사진 수")
+                    Text("한 화면 사진 수")
                     Spacer()
                     Text("\(settings.collageCount)장").foregroundStyle(.secondary)
                 }
                 Slider(value: Binding(
                     get: { Double(settings.collageCount) },
                     set: { settings.collageCount = Int($0) }
-                ), in: 2...9, step: 1)
+                ), in: 1...9, step: 1)
             } else {
                 HStack {
                     Text("범위")
@@ -300,41 +310,23 @@ struct SettingsView: View {
                     Text("\(min(settings.collageRangeMin, settings.collageRangeMax))~\(max(settings.collageRangeMin, settings.collageRangeMax))장")
                         .foregroundStyle(.secondary)
                 }
-                Stepper(value: $settings.collageRangeMin, in: 2...9) {
+                Stepper(value: $settings.collageRangeMin, in: 1...9) {
                     Text("최소 \(settings.collageRangeMin)장")
                 }
-                Stepper(value: $settings.collageRangeMax, in: 2...9) {
+                Stepper(value: $settings.collageRangeMax, in: 1...9) {
                     Text("최대 \(settings.collageRangeMax)장")
                 }
             }
-        }
-        Section("사진 채움 방식") {
-            Picker("채움 방식", selection: $settings.collageFitStyle) {
-                ForEach(CollageFitStyle.allCases) { style in
-                    Text(style.displayName).tag(style)
-                }
-            }
-            .pickerStyle(.segmented)
-
-            Text(settings.collageFitStyle == .blurFill
-                 ? "격자 레이아웃에 사진 전체를 보여주고, 남는 여백은 블러 배경으로 채웁니다."
-                 : "사진 비율에 맞춰 셀 모양을 잡아 여백 없이 배치합니다(잘림 없음).")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-
-        Section {
-            Text(settings.collageCountMode == .fixed
-                 ? "매 장면 같은 장수로 배치합니다. 각 사진은 잘리지 않고 전체가 보이도록 표시됩니다."
-                 : "장면마다 지정한 범위 안에서 무작위 장수로 배치합니다. 장수에 맞춰 레이아웃이 바뀌며, 각 사진은 잘리지 않고 전체가 보입니다.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+        } header: {
+            Text("장수")
+        } footer: {
+            Text("1장이면 한 장씩 슬라이드쇼, 2장 이상이면 콜라주 형태로 재생됩니다.")
         }
     }
 
     private var displayModeDescription: String {
         switch settings.displayMode {
-        case .slideshow: return "한 장씩 Ken Burns 효과로 전환하며 보여줍니다."
+        case .slideshow: return "장수에 따라 한 장씩(1장) 또는 콜라주(2장 이상)로 재생합니다."
         case .collage:   return "여러 장을 한 화면에 모자이크로 배치합니다."
         case .grid:      return "전체 사진을 격자로 스크롤하며 봅니다."
         }
@@ -344,6 +336,24 @@ struct SettingsView: View {
 
     private var slideshowDetail: some View {
         Form {
+            // 장수(1장=한 장씩, 2장 이상=콜라주)
+            showCountSections
+
+            Section("사진 채움 방식") {
+                Picker("채움 방식", selection: $settings.slideshowFitStyle) {
+                    ForEach(CollageFitStyle.allCases) { style in
+                        Text(style.displayName).tag(style)
+                    }
+                }
+                .pickerStyle(.segmented)
+
+                Text(settings.slideshowFitStyle == .blurFill
+                     ? "사진 전체를 보여주고, 남는 여백은 블러 배경으로 채웁니다."
+                     : "사진 전체를 비율 그대로 보여줍니다(남는 부분은 검은 여백).")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
             Section {
                 HStack {
                     Text("전환 간격")
@@ -362,30 +372,20 @@ struct SettingsView: View {
             } footer: {
                 Text("사진이 다음 장으로 넘어가는 간격입니다. (2초 ~ 60초)")
             }
-            Section("전환 효과") {
-                Picker("전환 효과", selection: $settings.slideTransition) {
-                    ForEach(SlideTransition.allCases) { transition in
-                        Text(transition.displayName).tag(transition)
-                    }
-                }
-                .pickerStyle(.menu)
-            }
-            Section("효과") {
-                Toggle("Ken Burns 효과", isOn: $settings.kenBurnsEnabled)
-            }
-            Section("사진 채움 방식") {
-                Picker("채움 방식", selection: $settings.slideshowFitStyle) {
-                    ForEach(CollageFitStyle.allCases) { style in
-                        Text(style.displayName).tag(style)
-                    }
-                }
-                .pickerStyle(.segmented)
 
-                Text(settings.slideshowFitStyle == .blurFill
-                     ? "사진 전체를 보여주고, 남는 여백은 블러 배경으로 채웁니다."
-                     : "사진 전체를 비율 그대로 보여줍니다(남는 부분은 검은 여백).")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            // 한 장씩(단일) 재생일 때만 의미 있는 효과.
+            if settings.isSinglePhotoShow {
+                Section("전환 효과") {
+                    Picker("전환 효과", selection: $settings.slideTransition) {
+                        ForEach(SlideTransition.allCases) { transition in
+                            Text(transition.displayName).tag(transition)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                }
+                Section("효과") {
+                    Toggle("Ken Burns 효과", isOn: $settings.kenBurnsEnabled)
+                }
             }
         }
     }
