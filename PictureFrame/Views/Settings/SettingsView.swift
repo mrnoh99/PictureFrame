@@ -7,6 +7,7 @@ struct SettingsView: View {
     let photoLib: PhotoLibraryService
     @EnvironmentObject private var settings: SettingsStore
     @EnvironmentObject private var lightroomAuth: LightroomAuthService
+    @EnvironmentObject private var weather: WeatherProvider
     @Environment(\.dismiss) private var dismiss
 
     @State private var selection: SettingsSection? = .albums
@@ -105,12 +106,72 @@ struct SettingsView: View {
         Form {
             Section {
                 Toggle("시계·날짜 표시", isOn: $settings.showClock)
+            } header: {
+                Text("시계")
+            }
+
+            Section {
                 Toggle("날씨 표시", isOn: $settings.showWeather)
             } header: {
-                Text("오버레이")
+                Text("날씨")
             } footer: {
-                Text("액자 화면 위에 시계와 날씨를 표시합니다. 날씨는 위치 권한과 WeatherKit 설정이 필요하며, 사용할 수 없으면 자동으로 숨겨집니다.")
+                Text("현재 위치의 날씨를 액자 위에 표시합니다.")
             }
+
+            // 날씨를 켰을 때 사용 가능 여부를 안내.
+            if settings.showWeather {
+                Section("날씨 상태") {
+                    HStack(spacing: 12) {
+                        Image(systemName: weatherStatusIcon)
+                            .font(.title3)
+                            .foregroundStyle(weatherStatusColor)
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(weatherStatusTitle)
+                                .font(.subheadline.weight(.medium))
+                            Text(weather.availability.message)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    if weather.availability.isOK, let temp = weather.temperatureText {
+                        HStack {
+                            Image(systemName: weather.symbolName).symbolRenderingMode(.multicolor)
+                            Text("현재 \(temp)")
+                            if let c = weather.conditionText { Text("· \(c)").foregroundStyle(.secondary) }
+                        }
+                        .font(.callout)
+                    }
+                }
+            }
+        }
+        .task(id: settings.showWeather) {
+            if settings.showWeather { weather.start() }
+        }
+    }
+
+    private var weatherStatusIcon: String {
+        switch weather.availability {
+        case .available: return "checkmark.circle.fill"
+        case .denied, .unavailable: return "exclamationmark.triangle.fill"
+        default: return "clock.fill"
+        }
+    }
+
+    private var weatherStatusColor: Color {
+        switch weather.availability {
+        case .available: return .green
+        case .denied, .unavailable: return .orange
+        default: return .secondary
+        }
+    }
+
+    private var weatherStatusTitle: String {
+        switch weather.availability {
+        case .idle:        return "대기 중"
+        case .requesting:  return "확인 중…"
+        case .denied:      return "위치 권한 없음"
+        case .available:   return "사용 가능"
+        case .unavailable: return "사용 불가"
         }
     }
 
