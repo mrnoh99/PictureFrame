@@ -13,6 +13,8 @@ struct BlurFillLayer: View {
     var backgroundScale: CGFloat = 1.0
     var backgroundOffset: CGSize = .zero
     var blurRadius: CGFloat = 24
+    /// false 면 블러 배경 없이 검은 배경(레터박스)만 사용 — "비율 맞춤" 방식.
+    var showBlurBackground: Bool = true
 
     var body: some View {
         GeometryReader { geo in
@@ -20,15 +22,17 @@ struct BlurFillLayer: View {
                 Color.black
 
                 // 블러 배경 — 살짝 확대해 블러 가장자리 비침을 가린다.
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: geo.size.width, height: geo.size.height)
-                    .scaleEffect(backgroundScale * 1.12)
-                    .offset(backgroundOffset)
-                    .clipped()
-                    .blur(radius: blurRadius)
-                    .overlay(Color.black.opacity(0.12))
+                if showBlurBackground {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: geo.size.width, height: geo.size.height)
+                        .scaleEffect(backgroundScale * 1.12)
+                        .offset(backgroundOffset)
+                        .clipped()
+                        .blur(radius: blurRadius)
+                        .overlay(Color.black.opacity(0.12))
+                }
 
                 // 전경 — 사진 전체가 보이도록 .fit, 절대 셀 밖으로 나가지 않음.
                 Image(uiImage: image)

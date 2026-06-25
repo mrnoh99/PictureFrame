@@ -373,6 +373,20 @@ struct SettingsView: View {
             Section("효과") {
                 Toggle("Ken Burns 효과", isOn: $settings.kenBurnsEnabled)
             }
+            Section("사진 채움 방식") {
+                Picker("채움 방식", selection: $settings.slideshowFitStyle) {
+                    ForEach(CollageFitStyle.allCases) { style in
+                        Text(style.displayName).tag(style)
+                    }
+                }
+                .pickerStyle(.segmented)
+
+                Text(settings.slideshowFitStyle == .blurFill
+                     ? "사진 전체를 보여주고, 남는 여백은 블러 배경으로 채웁니다."
+                     : "사진 전체를 비율 그대로 보여줍니다(남는 부분은 검은 여백).")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 

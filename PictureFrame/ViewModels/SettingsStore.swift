@@ -90,6 +90,11 @@ final class SettingsStore: ObservableObject {
         didSet { UserDefaults.standard.set(collageFitStyle.rawValue, forKey: "collageFitStyle") }
     }
 
+    /// 슬라이드쇼 사진 채움 방식(블러 배경 / 비율 맞춤).
+    @Published var slideshowFitStyle: CollageFitStyle {
+        didSet { UserDefaults.standard.set(slideshowFitStyle.rawValue, forKey: "slideshowFitStyle") }
+    }
+
     /// 주어진 장면(scene)에 사용할 콜라주 사진 수.
     /// 고정 모드면 항상 동일하고, 무작위 모드면 장면마다 범위 안에서 결정적으로 달라진다.
     /// (결정적이어야 같은 장면에서 batch/advance/template 가 항상 일치한다.)
@@ -165,6 +170,7 @@ final class SettingsStore: ObservableObject {
         collageRangeMin = defaults.integer(forKey: "collageRangeMin").nonZero ?? 3
         collageRangeMax = defaults.integer(forKey: "collageRangeMax").nonZero ?? 6
         collageFitStyle = CollageFitStyle(rawValue: defaults.string(forKey: "collageFitStyle") ?? "") ?? .blurFill
+        slideshowFitStyle = CollageFitStyle(rawValue: defaults.string(forKey: "slideshowFitStyle") ?? "") ?? .blurFill
         musicEnabled = defaults.object(forKey: "musicEnabled") as? Bool ?? false
         musicVolume = defaults.object(forKey: "musicVolume") as? Double ?? 0.6
         musicTracks = Self.load(key: "musicTracks") ?? []

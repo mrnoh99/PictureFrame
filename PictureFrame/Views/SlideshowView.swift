@@ -19,7 +19,8 @@ struct SlideshowView: View {
                     viewModel: viewModel,
                     enabled: settings.kenBurnsEnabled,
                     duration: settings.slideInterval,
-                    sequence: viewModel.currentIndex
+                    sequence: viewModel.currentIndex,
+                    fitStyle: settings.slideshowFitStyle
                 )
                 .id(viewModel.currentIndex)  // ID 변경 시 뷰 교체 → 전환 효과 적용
                 .transition(settings.slideTransition.swiftUITransition(index: viewModel.currentIndex))
@@ -85,6 +86,8 @@ private struct KenBurnsPhotoView: View {
     let duration: TimeInterval
     /// 현재 사진의 순번 — 패턴을 순서대로 선택하는 데 사용.
     let sequence: Int
+    /// 채움 방식(블러 배경 / 비율 레터박스).
+    let fitStyle: CollageFitStyle
 
     @State private var image: UIImage?
     @State private var atEnd = false
@@ -103,12 +106,14 @@ private struct KenBurnsPhotoView: View {
                 Color.black
 
                 if let img = displayImage {
-                    // 사진 전체(.fit)를 블러 배경 위에 표시 → 정지 시 검은 여백 없음.
+                    // 사진 전체(.fit)를 표시 → 정지 시 사진이 잘리지 않음.
+                    // 블러 방식: 여백을 블러 배경으로 채움 / 비율 방식: 검은 레터박스.
                     // Ken Burns 줌/팬은 전경에 적용되어 화면을 벗어날 수 있다(의도된 효과).
                     BlurFillLayer(
                         image: img,
                         foregroundScale: currentScale,
-                        foregroundOffset: currentOffset
+                        foregroundOffset: currentOffset,
+                        showBlurBackground: fitStyle == .blurFill
                     )
                 } else {
                     ProgressView().tint(.white.opacity(0.4))
