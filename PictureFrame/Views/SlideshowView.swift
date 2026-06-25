@@ -28,8 +28,6 @@ struct SlideshowView: View {
         }
         .animation(.easeInOut(duration: 0.8), value: viewModel.currentIndex)
         .gesture(swipeGesture)
-        .onAppear { viewModel.startSlideTimer() }
-        .onDisappear { viewModel.stopSlideTimer() }
         .ignoresSafeArea()
     }
 

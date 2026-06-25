@@ -29,7 +29,15 @@ struct FrameContainerView: View {
         .overlay(alignment: .topLeading) {
             WidgetOverlayView()
         }
-        .task { await viewModel.reload() }
+        .task {
+            await viewModel.reload()
+            startAppropriateTimer()
+        }
+        .onAppear { startAppropriateTimer() }
+        .onChange(of: settings.displayMode) { _, _ in startAppropriateTimer() }
+        .onChange(of: settings.isSinglePhotoShow) { _, _ in startAppropriateTimer() }
+        .onChange(of: viewModel.photos.count) { _, _ in startAppropriateTimer() }
+        .onDisappear { viewModel.stopSlideTimer() }
         .task(id: settings.showWeather) {
             if settings.showWeather { weather.start() }
         }
@@ -42,6 +50,25 @@ struct FrameContainerView: View {
                     .background(.red.opacity(0.8), in: RoundedRectangle(cornerRadius: 8))
                     .padding()
             }
+        }
+    }
+
+    /// 현재 표시 방식/장수에 맞는 재생 타이머를 시작한다.
+    /// 뷰 교체(콜라주↔단일) 시 onAppear/onDisappear 경합으로 타이머가 꺼지는 것을 막기 위해
+    /// 컨테이너에서 일원화해 관리한다.
+    private func startAppropriateTimer() {
+        guard !viewModel.photos.isEmpty else { return }
+        switch settings.displayMode {
+        case .grid:
+            viewModel.stopSlideTimer()
+        case .slideshow:
+            if settings.isSinglePhotoShow {
+                viewModel.startSlideTimer()
+            } else {
+                viewModel.startCollageTimer()
+            }
+        case .collage:
+            viewModel.startCollageTimer()
         }
     }
 

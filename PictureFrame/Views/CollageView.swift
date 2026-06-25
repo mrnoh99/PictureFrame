@@ -51,8 +51,6 @@ struct CollageView: View {
             }
         }
         .ignoresSafeArea()
-        .onAppear { viewModel.startCollageTimer() }
-        .onDisappear { viewModel.stopSlideTimer() }
     }
 
     /// 한 사진을 표시할 셀 뷰 — 채움 방식에 따라 달라진다.
