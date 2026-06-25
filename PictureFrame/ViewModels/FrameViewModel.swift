@@ -116,6 +116,14 @@ final class FrameViewModel: ObservableObject {
         return image
     }
 
+    /// 메모리 캐시에 이미 있는 이미지를 동기적으로 반환한다.
+    /// 전환 순간 새 뷰가 검은 화면으로 삽입되어 효과가 어색해지는 것을 막기 위해,
+    /// (prefetch 로 채워진) 캐시 이미지를 즉시 표시하는 데 사용한다.
+    func cachedImage(for photo: FramePhoto, targetSize: CGSize) -> UIImage? {
+        let size = clampToScreen(targetSize)
+        return ImageCache.shared.memoryImage(for: photo.id, size: size)
+    }
+
     /// 대상 크기를 기기 화면(포인트) 범위로 제한한다.
     /// 큰 사진을 전체 해상도로 받지 않고 iPad 화면에 맞는 크기로 축소 요청하기 위함.
     private func clampToScreen(_ size: CGSize) -> CGSize {

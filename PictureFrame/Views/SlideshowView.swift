@@ -95,10 +95,14 @@ private struct KenBurnsPhotoView: View {
 
     var body: some View {
         GeometryReader { geo in
+            // 메모리 캐시(prefetch)에 이미 있으면 첫 렌더부터 즉시 표시 →
+            // 전환이 "검은 화면"이 아니라 실제 사진끼리 매끄럽게 이어진다.
+            let displayImage = image ?? viewModel.cachedImage(for: photo, targetSize: geo.size)
+
             ZStack {
                 Color.black
 
-                if let img = image {
+                if let img = displayImage {
                     Image(uiImage: img)
                         .resizable()
                         .aspectRatio(contentMode: .fill)
@@ -110,8 +114,11 @@ private struct KenBurnsPhotoView: View {
                 }
             }
             .task(id: photo.id) {
-                image = await viewModel.loadImage(for: photo, targetSize: geo.size)
-                // 이미지 로드 후 끝 상태로 천천히 애니메이션.
+                // 캐시에 없을 때만 비동기 로드.
+                if image == nil {
+                    image = await viewModel.loadImage(for: photo, targetSize: geo.size)
+                }
+                // 끝 상태로 천천히 애니메이션(Ken Burns).
                 if enabled {
                     atEnd = false
                     withAnimation(.easeInOut(duration: duration)) {
