@@ -28,12 +28,13 @@ struct CollageView: View {
                 ProgressView().tint(.white)
             } else {
                 GeometryReader { geo in
+                    let rects = layoutRects(in: geo.size)
                     ZStack(alignment: .topLeading) {
                         ForEach(Array(zip(photos.indices, photos)), id: \.1.id) { index, photo in
-                            let cell = cellRect(at: index, in: geo.size)
-                            // .fit 으로 각 사진이 잘리지 않고 셀(모양) 안에 전부 보이도록 한다.
-                            AsyncPhotoView(photo: photo, contentMode: .fit, viewModel: viewModel)
+                            let cell = rects.indices.contains(index) ? rects[index] : .zero
+                            collageCell(for: photo)
                                 .frame(width: cell.width, height: cell.height)
+                                .clipped()
                                 .offset(x: cell.minX, y: cell.minY)
                                 .transition(.opacity.combined(with: .scale(scale: 0.96)))
                         }
@@ -52,6 +53,30 @@ struct CollageView: View {
         .ignoresSafeArea()
         .onAppear { viewModel.startCollageTimer() }
         .onDisappear { viewModel.stopSlideTimer() }
+    }
+
+    /// 한 사진을 표시할 셀 뷰 — 채움 방식에 따라 달라진다.
+    @ViewBuilder
+    private func collageCell(for photo: FramePhoto) -> some View {
+        switch settings.collageFitStyle {
+        case .blurFill:
+            // 사진 전체(.fit) + 남는 여백은 블러 배경으로 채움.
+            BlurFillPhotoView(photo: photo, viewModel: viewModel)
+        case .aspect:
+            // 셀 비율 = 사진 비율이므로 .fill 로도 잘리지 않는다.
+            AsyncPhotoView(photo: photo, contentMode: .fill, viewModel: viewModel)
+        }
+    }
+
+    /// 채움 방식에 맞는 각 사진의 픽셀 사각형 배열.
+    private func layoutRects(in size: CGSize) -> [CGRect] {
+        switch settings.collageFitStyle {
+        case .blurFill:
+            return (0..<photos.count).map { cellRect(at: $0, in: size) }
+        case .aspect:
+            let aspects = photos.map { $0.aspectRatio ?? (4.0 / 3.0) }
+            return CollageLayouts.justified(aspects: aspects, in: size, spacing: 4)
+        }
     }
 
     /// 단위 좌표 셀을 실제 픽셀 사각형으로 변환(2pt 간격 적용).

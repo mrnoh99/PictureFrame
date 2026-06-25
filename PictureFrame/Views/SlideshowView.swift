@@ -103,12 +103,13 @@ private struct KenBurnsPhotoView: View {
                 Color.black
 
                 if let img = displayImage {
-                    Image(uiImage: img)
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .scaleEffect(currentScale)
-                        .offset(currentOffset)
-                        .clipped()
+                    // 사진 전체(.fit)를 블러 배경 위에 표시 → 정지 시 검은 여백 없음.
+                    // Ken Burns 줌/팬은 전경에 적용되어 화면을 벗어날 수 있다(의도된 효과).
+                    BlurFillLayer(
+                        image: img,
+                        foregroundScale: currentScale,
+                        foregroundOffset: currentOffset
+                    )
                 } else {
                     ProgressView().tint(.white.opacity(0.4))
                 }

@@ -17,6 +17,22 @@ enum CollageCountMode: String, CaseIterable, Codable, Identifiable {
     }
 }
 
+/// 콜라주에서 각 사진을 셀(모양)에 채우는 방식.
+enum CollageFitStyle: String, CaseIterable, Codable, Identifiable {
+    /// 템플릿 격자 배치 + 사진 전체를 보이게 하고 남는 여백은 블러 배경으로 채움.
+    case blurFill
+    /// 사진 비율에 맞춰 셀 모양을 동적으로 잡아 여백 없이 배치(잘림·여백 없음).
+    case aspect
+
+    var id: String { rawValue }
+    var displayName: String {
+        switch self {
+        case .blurFill: return "블러 배경"
+        case .aspect:   return "비율 맞춤"
+        }
+    }
+}
+
 /// 사용자 설정을 UserDefaults 에 영속 저장하고 UI 에 바인딩한다.
 final class SettingsStore: ObservableObject {
     // MARK: - 선택된 앨범
@@ -67,6 +83,11 @@ final class SettingsStore: ObservableObject {
     /// 무작위 모드의 최대 장수 (2~9).
     @Published var collageRangeMax: Int {
         didSet { UserDefaults.standard.set(collageRangeMax, forKey: "collageRangeMax") }
+    }
+
+    /// 콜라주 사진 채움 방식(블러 배경 / 비율 맞춤).
+    @Published var collageFitStyle: CollageFitStyle {
+        didSet { UserDefaults.standard.set(collageFitStyle.rawValue, forKey: "collageFitStyle") }
     }
 
     /// 주어진 장면(scene)에 사용할 콜라주 사진 수.
@@ -143,6 +164,7 @@ final class SettingsStore: ObservableObject {
         collageCount = defaults.integer(forKey: "collageCount").nonZero ?? 4
         collageRangeMin = defaults.integer(forKey: "collageRangeMin").nonZero ?? 3
         collageRangeMax = defaults.integer(forKey: "collageRangeMax").nonZero ?? 6
+        collageFitStyle = CollageFitStyle(rawValue: defaults.string(forKey: "collageFitStyle") ?? "") ?? .blurFill
         musicEnabled = defaults.object(forKey: "musicEnabled") as? Bool ?? false
         musicVolume = defaults.object(forKey: "musicVolume") as? Double ?? 0.6
         musicTracks = Self.load(key: "musicTracks") ?? []

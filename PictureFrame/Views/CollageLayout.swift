@@ -136,6 +136,69 @@ enum CollageLayouts {
         ])
     ]
 
+    // MARK: - 비율 맞춤(justified) 레이아웃
+
+    /// 사진들의 종횡비(width/height)에 맞춰 잘림·여백 없이 배치한 픽셀 사각형을 만든다.
+    /// 가로로 줄(row)을 채워 너비를 꽉 맞추고, 전체를 컨테이너에 맞춰 중앙 정렬한다.
+    /// 각 사진 셀의 비율 = 사진 비율이므로 사진이 잘리거나 레터박스가 생기지 않는다.
+    /// - Parameters:
+    ///   - aspects: 각 사진의 종횡비(없으면 호출 측에서 기본값을 채워 전달).
+    ///   - size: 컨테이너 크기(픽셀).
+    ///   - spacing: 사진 간 간격(픽셀).
+    static func justified(aspects: [CGFloat], in size: CGSize, spacing: CGFloat) -> [CGRect] {
+        let n = aspects.count
+        guard n > 0, size.width > 1, size.height > 1 else { return [] }
+
+        // 줄 수 추정 → 목표 줄 높이.
+        let rowsGuess = max(1, Int(Double(n).squareRoot().rounded()))
+        let targetRowHeight = size.height / CGFloat(rowsGuess)
+
+        // 1) 목표 높이 기준으로 너비가 컨테이너를 넘으면 줄을 끊는다.
+        var rows: [[Int]] = []
+        var current: [Int] = []
+        var aspectSum: CGFloat = 0
+        for i in 0..<n {
+            current.append(i)
+            aspectSum += max(aspects[i], 0.05)
+            let naturalWidth = aspectSum * targetRowHeight + spacing * CGFloat(current.count - 1)
+            if naturalWidth >= size.width {
+                rows.append(current)
+                current = []
+                aspectSum = 0
+            }
+        }
+        if !current.isEmpty { rows.append(current) }
+
+        // 2) 각 줄을 너비에 꽉 맞춰 줄 높이 계산.
+        var rowHeights: [CGFloat] = []
+        for row in rows {
+            let sum = row.reduce(CGFloat(0)) { $0 + max(aspects[$1], 0.05) }
+            let totalSpacing = spacing * CGFloat(row.count - 1)
+            rowHeights.append((size.width - totalSpacing) / max(sum, 0.05))
+        }
+
+        // 3) 전체 높이가 컨테이너를 넘으면 균일 축소(비율 보존), 중앙 정렬.
+        let totalH = rowHeights.reduce(0, +) + spacing * CGFloat(max(0, rows.count - 1))
+        let scale = totalH > size.height ? size.height / totalH : 1.0
+        let offsetY = (size.height - totalH * scale) / 2
+
+        // 4) 사각형 배치.
+        var rects = [CGRect](repeating: .zero, count: n)
+        var y = offsetY
+        for (ri, row) in rows.enumerated() {
+            let h = rowHeights[ri] * scale
+            let rowWidth = size.width * scale
+            var x = (size.width - rowWidth) / 2
+            for idx in row {
+                let w = max(aspects[idx], 0.05) * h
+                rects[idx] = CGRect(x: x, y: y, width: w, height: h)
+                x += w + spacing * scale
+            }
+            y += h + spacing * scale
+        }
+        return rects
+    }
+
     // MARK: - 일반 그리드 (폴백)
 
     static func grid(_ count: Int) -> CollageTemplate {

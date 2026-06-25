@@ -308,6 +308,21 @@ struct SettingsView: View {
                 }
             }
         }
+        Section("사진 채움 방식") {
+            Picker("채움 방식", selection: $settings.collageFitStyle) {
+                ForEach(CollageFitStyle.allCases) { style in
+                    Text(style.displayName).tag(style)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            Text(settings.collageFitStyle == .blurFill
+                 ? "격자 레이아웃에 사진 전체를 보여주고, 남는 여백은 블러 배경으로 채웁니다."
+                 : "사진 비율에 맞춰 셀 모양을 잡아 여백 없이 배치합니다(잘림 없음).")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+
         Section {
             Text(settings.collageCountMode == .fixed
                  ? "매 장면 같은 장수로 배치합니다. 각 사진은 잘리지 않고 전체가 보이도록 표시됩니다."
