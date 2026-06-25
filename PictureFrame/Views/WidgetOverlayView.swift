@@ -6,11 +6,21 @@ struct WidgetOverlayView: View {
     @EnvironmentObject private var settings: SettingsStore
     @EnvironmentObject private var weather: WeatherProvider
 
+    /// 날씨 행을 표시할지 여부. 사용 불가/권한 거부 시에는 숨겨서
+    /// "불러오는 중…"이 영원히 남아있지 않도록 한다.
+    private var showWeatherRow: Bool {
+        guard settings.showWeather else { return false }
+        switch weather.availability {
+        case .available, .requesting, .idle: return true
+        case .denied, .unavailable: return false
+        }
+    }
+
     var body: some View {
-        if settings.showClock || settings.showWeather {
+        if settings.showClock || showWeatherRow {
             VStack(alignment: .leading, spacing: 6) {
                 if settings.showClock { clock }
-                if settings.showWeather { weatherRow }
+                if showWeatherRow { weatherRow }
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 14)
