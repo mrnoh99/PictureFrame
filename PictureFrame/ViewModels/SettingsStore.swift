@@ -63,6 +63,11 @@ final class SettingsStore: ObservableObject {
         didSet { UserDefaults.standard.set(slideTransition.rawValue, forKey: "slideTransition") }
     }
 
+    /// "랜덤 선택" 모드에서 무작위로 적용할 효과 목록(최대 5개).
+    @Published var selectedTransitions: [SlideTransition] {
+        didSet { save(selectedTransitions.map(\.rawValue), key: "selectedTransitions") }
+    }
+
     // MARK: - 콜라주 설정
 
     /// 콜라주 장수 결정 방식(고정/범위 무작위).
@@ -165,6 +170,9 @@ final class SettingsStore: ObservableObject {
         slideInterval = defaults.double(forKey: "slideInterval").nonZero ?? AppConfig.defaultSlideInterval
         kenBurnsEnabled = defaults.object(forKey: "kenBurnsEnabled") as? Bool ?? true
         slideTransition = SlideTransition(rawValue: defaults.string(forKey: "slideTransition") ?? "") ?? .crossfade
+        let savedTransitions: [String] = Self.load(key: "selectedTransitions") ?? []
+        let restored = savedTransitions.compactMap { SlideTransition(rawValue: $0) }
+        selectedTransitions = restored.isEmpty ? [.crossfade, .slide, .zoom] : restored
         collageCountMode = CollageCountMode(rawValue: defaults.string(forKey: "collageCountMode") ?? "") ?? .fixed
         collageCount = defaults.integer(forKey: "collageCount").nonZero ?? 4
         collageRangeMin = defaults.integer(forKey: "collageRangeMin").nonZero ?? 3

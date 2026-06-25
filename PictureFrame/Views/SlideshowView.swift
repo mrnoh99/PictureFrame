@@ -23,7 +23,10 @@ struct SlideshowView: View {
                     fitStyle: settings.slideshowFitStyle
                 )
                 .id(viewModel.currentIndex)  // ID 변경 시 뷰 교체 → 전환 효과 적용
-                .transition(settings.slideTransition.swiftUITransition(index: viewModel.currentIndex))
+                .transition(settings.slideTransition.resolved(
+                    pool: settings.selectedTransitions,
+                    index: viewModel.currentIndex
+                ))
             }
         }
         .animation(.easeInOut(duration: 0.8), value: viewModel.currentIndex)

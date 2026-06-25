@@ -383,10 +383,46 @@ struct SettingsView: View {
                     }
                     .pickerStyle(.menu)
                 }
+
+                // 랜덤 선택 모드: 효과를 최대 5개 골라 무작위 적용.
+                if settings.slideTransition == .randomSelected {
+                    Section {
+                        ForEach(SlideTransition.concreteEffects) { effect in
+                            let isOn = settings.selectedTransitions.contains(effect)
+                            Button {
+                                toggleTransition(effect)
+                            } label: {
+                                HStack {
+                                    Text(effect.displayName)
+                                    Spacer()
+                                    if isOn {
+                                        Image(systemName: "checkmark")
+                                            .foregroundStyle(.tint)
+                                    }
+                                }
+                            }
+                            .foregroundStyle(.primary)
+                            .disabled(!isOn && settings.selectedTransitions.count >= SlideTransition.maxRandomSelection)
+                        }
+                    } header: {
+                        Text("적용할 효과 (최대 \(SlideTransition.maxRandomSelection)개)")
+                    } footer: {
+                        Text("선택한 \(settings.selectedTransitions.count)개 효과 중 무작위로 적용됩니다.")
+                    }
+                }
                 Section("효과") {
                     Toggle("Ken Burns 효과", isOn: $settings.kenBurnsEnabled)
                 }
             }
+        }
+    }
+
+    /// 랜덤 선택 효과 목록에서 토글(최대 개수 초과 시 추가 안 함).
+    private func toggleTransition(_ effect: SlideTransition) {
+        if let idx = settings.selectedTransitions.firstIndex(of: effect) {
+            settings.selectedTransitions.remove(at: idx)
+        } else if settings.selectedTransitions.count < SlideTransition.maxRandomSelection {
+            settings.selectedTransitions.append(effect)
         }
     }
 

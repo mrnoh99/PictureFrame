@@ -22,6 +22,8 @@ enum SlideTransition: String, CaseIterable, Codable, Identifiable {
     case flip
     /// 여러 효과를 순서대로 번갈아 사용.
     case mixed
+    /// 사용자가 고른 효과(최대 5개) 중 무작위로 적용.
+    case randomSelected
 
     var id: String { rawValue }
 
@@ -36,14 +38,21 @@ enum SlideTransition: String, CaseIterable, Codable, Identifiable {
         case .pushDown:  return "내리기"
         case .blur:      return "블러"
         case .flip:      return "플립"
-        case .mixed:     return "혼합"
+        case .mixed:     return "혼합(전체 순환)"
+        case .randomSelected: return "랜덤 선택"
         }
     }
 
-    /// 단일 효과 목록(혼합 모드에서 순환에 사용).
-    private static let cycle: [SlideTransition] = [
+    /// 무작위/혼합에 사용할 수 있는 단일 효과 목록(혼합·랜덤 선택 메타 케이스 제외).
+    static let concreteEffects: [SlideTransition] = [
         .crossfade, .slide, .push, .zoom, .zoomOut, .pushUp, .pushDown, .blur, .flip
     ]
+
+    /// 랜덤 선택 시 한 번에 고를 수 있는 최대 효과 수.
+    static let maxRandomSelection = 5
+
+    /// 단일 효과 목록(혼합 모드에서 순환에 사용).
+    private static let cycle: [SlideTransition] = concreteEffects
 
     /// 인덱스에 따라 실제 적용할 SwiftUI 전환을 반환한다.
     /// - Parameter index: 현재 사진 순번(혼합 모드에서 순서대로 효과를 바꾸는 데 사용).
@@ -79,7 +88,23 @@ enum SlideTransition: String, CaseIterable, Codable, Identifiable {
         case .mixed:
             let effect = Self.cycle[((index % Self.cycle.count) + Self.cycle.count) % Self.cycle.count]
             return effect.swiftUITransition(index: index)
+        case .randomSelected:
+            // 단독으로는 풀을 알 수 없어 기본값. 실제로는 resolve(pool:index:) 사용.
+            return .opacity
         }
+    }
+
+    /// 현재 모드와 (랜덤 선택용) 효과 풀을 받아 이번 장면에 적용할 전환을 결정한다.
+    /// 랜덤 선택은 같은 장면이면 항상 같은 효과가 나오도록 인덱스 기반 결정적 난수를 쓴다.
+    func resolved(pool: [SlideTransition], index: Int) -> AnyTransition {
+        guard self == .randomSelected else {
+            return swiftUITransition(index: index)
+        }
+        let effects = pool.isEmpty ? [SlideTransition.crossfade] : pool
+        var x = UInt64(bitPattern: Int64(index &+ 1))
+        x = (x &* 0x9E3779B97F4A7C15) ^ (x >> 29)
+        let pick = effects[Int(x % UInt64(effects.count))]
+        return pick.swiftUITransition(index: index)
     }
 }
 
