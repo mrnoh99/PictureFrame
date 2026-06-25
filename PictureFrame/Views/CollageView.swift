@@ -6,8 +6,13 @@ struct CollageView: View {
     @ObservedObject var viewModel: FrameViewModel
     @EnvironmentObject private var settings: SettingsStore
 
+    /// 현재 장면(currentIndex)의 사진 수 — 고정 또는 범위 내 무작위.
+    private var sceneCount: Int {
+        settings.collagePhotoCount(forScene: viewModel.currentIndex)
+    }
+
     private var photos: [FramePhoto] {
-        viewModel.collageBatch(count: settings.collageCount)
+        viewModel.collageBatch(count: sceneCount)
     }
 
     /// 현재 장면에 사용할 템플릿 — currentIndex 에 따라 변형이 순환한다.
@@ -26,9 +31,9 @@ struct CollageView: View {
                     ZStack(alignment: .topLeading) {
                         ForEach(Array(zip(photos.indices, photos)), id: \.1.id) { index, photo in
                             let cell = cellRect(at: index, in: geo.size)
-                            AsyncPhotoView(photo: photo, contentMode: .fill, viewModel: viewModel)
+                            // .fit 으로 각 사진이 잘리지 않고 셀(모양) 안에 전부 보이도록 한다.
+                            AsyncPhotoView(photo: photo, contentMode: .fit, viewModel: viewModel)
                                 .frame(width: cell.width, height: cell.height)
-                                .clipped()
                                 .offset(x: cell.minX, y: cell.minY)
                                 .transition(.opacity.combined(with: .scale(scale: 0.96)))
                         }
@@ -39,13 +44,13 @@ struct CollageView: View {
                 .contentShape(Rectangle())
                 .onTapGesture(count: 2) {
                     withAnimation(.easeInOut(duration: 0.5)) {
-                        viewModel.advance(by: settings.collageCount)
+                        viewModel.advance(by: max(1, sceneCount))
                     }
                 }
             }
         }
         .ignoresSafeArea()
-        .onAppear { viewModel.startSlideTimer(step: settings.collageCount) }
+        .onAppear { viewModel.startCollageTimer() }
         .onDisappear { viewModel.stopSlideTimer() }
     }
 

@@ -22,6 +22,12 @@ struct SettingsView: View {
         case albums, display, slideshow, collage, music, overlay, lightroom
         var id: String { rawValue }
 
+        /// 사이드바에 노출할 항목. 콜라주 설정은 표시 방식에서 "콜라주"를 고른 뒤
+        /// 표시 방식 화면 안에 나타나므로 별도 사이드바 항목으로는 두지 않는다.
+        static var sidebarCases: [SettingsSection] {
+            allCases.filter { $0 != .collage }
+        }
+
         var title: String {
             switch self {
             case .albums: return "앨범 소스"
@@ -51,7 +57,7 @@ struct SettingsView: View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
             // MARK: 사이드바
             List(selection: $selection) {
-                ForEach(SettingsSection.allCases) { section in
+                ForEach(SettingsSection.sidebarCases) { section in
                     Label(section.title, systemImage: section.systemImage)
                         .tag(section)
                 }
@@ -93,7 +99,7 @@ struct SettingsView: View {
         case .albums:    albumsDetail
         case .display:   displayDetail
         case .slideshow: slideshowDetail
-        case .collage:   collageDetail
+        case .collage:   displayDetail   // 콜라주 설정은 표시 방식 화면에 통합됨
         case .music:     musicDetail
         case .overlay:   overlayDetail
         case .lightroom: lightroomDetail
@@ -257,6 +263,57 @@ struct SettingsView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+
+            // 콜라주를 선택했을 때만 콜라주 장수 설정이 나타난다.
+            if settings.displayMode == .collage {
+                collageSettingsSections
+            }
+        }
+    }
+
+    // MARK: 콜라주 설정(표시 방식 = 콜라주일 때 노출)
+
+    @ViewBuilder
+    private var collageSettingsSections: some View {
+        Section("콜라주 장수") {
+            Picker("장수 방식", selection: $settings.collageCountMode) {
+                ForEach(CollageCountMode.allCases) { mode in
+                    Text(mode.displayName).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            if settings.collageCountMode == .fixed {
+                HStack {
+                    Text("사진 수")
+                    Spacer()
+                    Text("\(settings.collageCount)장").foregroundStyle(.secondary)
+                }
+                Slider(value: Binding(
+                    get: { Double(settings.collageCount) },
+                    set: { settings.collageCount = Int($0) }
+                ), in: 2...9, step: 1)
+            } else {
+                HStack {
+                    Text("범위")
+                    Spacer()
+                    Text("\(min(settings.collageRangeMin, settings.collageRangeMax))~\(max(settings.collageRangeMin, settings.collageRangeMax))장")
+                        .foregroundStyle(.secondary)
+                }
+                Stepper(value: $settings.collageRangeMin, in: 2...9) {
+                    Text("최소 \(settings.collageRangeMin)장")
+                }
+                Stepper(value: $settings.collageRangeMax, in: 2...9) {
+                    Text("최대 \(settings.collageRangeMax)장")
+                }
+            }
+        }
+        Section {
+            Text(settings.collageCountMode == .fixed
+                 ? "매 장면 같은 장수로 배치합니다. 각 사진은 잘리지 않고 전체가 보이도록 표시됩니다."
+                 : "장면마다 지정한 범위 안에서 무작위 장수로 배치합니다. 장수에 맞춰 레이아웃이 바뀌며, 각 사진은 잘리지 않고 전체가 보입니다.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
     }
 
@@ -300,24 +357,6 @@ struct SettingsView: View {
             }
             Section("효과") {
                 Toggle("Ken Burns 효과", isOn: $settings.kenBurnsEnabled)
-            }
-        }
-    }
-
-    // MARK: 콜라주
-
-    private var collageDetail: some View {
-        Form {
-            Section("레이아웃") {
-                HStack {
-                    Text("사진 수")
-                    Spacer()
-                    Text("\(settings.collageCount)장").foregroundStyle(.secondary)
-                }
-                Slider(value: Binding(
-                    get: { Double(settings.collageCount) },
-                    set: { settings.collageCount = Int($0) }
-                ), in: 2...9, step: 1)
             }
         }
     }

@@ -77,6 +77,20 @@ final class FrameViewModel: ObservableObject {
         }
     }
 
+    /// 콜라주 전용 타이머. 매 틱마다 현재 장면의 사진 수만큼 넘긴다
+    /// (장수가 고정이든 범위 무작위든 항상 현재 장면 기준으로 진행).
+    func startCollageTimer() {
+        stopSlideTimer()
+        guard photos.count > 1 else { return }
+        slideTimer = Timer.scheduledTimer(withTimeInterval: settings.slideInterval, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                let step = self.settings.collagePhotoCount(forScene: self.currentIndex)
+                self.advance(by: max(1, step))
+            }
+        }
+    }
+
     func stopSlideTimer() {
         slideTimer?.invalidate()
         slideTimer = nil

@@ -1,6 +1,22 @@
 import Foundation
 import Combine
 
+/// 콜라주 한 화면의 사진 수를 정하는 방식.
+enum CollageCountMode: String, CaseIterable, Codable, Identifiable {
+    /// 항상 동일한 장수.
+    case fixed
+    /// 지정한 범위 안에서 장면마다 무작위.
+    case random
+
+    var id: String { rawValue }
+    var displayName: String {
+        switch self {
+        case .fixed:  return "고정"
+        case .random: return "범위 내 무작위"
+        }
+    }
+}
+
 /// 사용자 설정을 UserDefaults 에 영속 저장하고 UI 에 바인딩한다.
 final class SettingsStore: ObservableObject {
     // MARK: - 선택된 앨범
@@ -33,9 +49,43 @@ final class SettingsStore: ObservableObject {
 
     // MARK: - 콜라주 설정
 
-    /// 콜라주 한 화면에 표시할 사진 수 (2~9).
+    /// 콜라주 장수 결정 방식(고정/범위 무작위).
+    @Published var collageCountMode: CollageCountMode {
+        didSet { UserDefaults.standard.set(collageCountMode.rawValue, forKey: "collageCountMode") }
+    }
+
+    /// 콜라주 한 화면에 표시할 사진 수 (고정 모드, 2~9).
     @Published var collageCount: Int {
         didSet { UserDefaults.standard.set(collageCount, forKey: "collageCount") }
+    }
+
+    /// 무작위 모드의 최소 장수 (2~9).
+    @Published var collageRangeMin: Int {
+        didSet { UserDefaults.standard.set(collageRangeMin, forKey: "collageRangeMin") }
+    }
+
+    /// 무작위 모드의 최대 장수 (2~9).
+    @Published var collageRangeMax: Int {
+        didSet { UserDefaults.standard.set(collageRangeMax, forKey: "collageRangeMax") }
+    }
+
+    /// 주어진 장면(scene)에 사용할 콜라주 사진 수.
+    /// 고정 모드면 항상 동일하고, 무작위 모드면 장면마다 범위 안에서 결정적으로 달라진다.
+    /// (결정적이어야 같은 장면에서 batch/advance/template 가 항상 일치한다.)
+    func collagePhotoCount(forScene scene: Int) -> Int {
+        switch collageCountMode {
+        case .fixed:
+            return collageCount
+        case .random:
+            let lo = max(1, min(collageRangeMin, collageRangeMax))
+            let hi = max(collageRangeMin, collageRangeMax)
+            let span = hi - lo + 1
+            guard span > 1 else { return lo }
+            // 장면 인덱스 기반 의사난수(해시) → 같은 장면이면 항상 같은 값.
+            var x = UInt64(bitPattern: Int64(scene &+ 1))
+            x = (x &* 0x9E3779B97F4A7C15) ^ (x >> 29)
+            return lo + Int(x % UInt64(span))
+        }
     }
 
     // MARK: - 배경음악 설정
@@ -89,7 +139,10 @@ final class SettingsStore: ObservableObject {
         slideInterval = defaults.double(forKey: "slideInterval").nonZero ?? AppConfig.defaultSlideInterval
         kenBurnsEnabled = defaults.object(forKey: "kenBurnsEnabled") as? Bool ?? true
         slideTransition = SlideTransition(rawValue: defaults.string(forKey: "slideTransition") ?? "") ?? .crossfade
+        collageCountMode = CollageCountMode(rawValue: defaults.string(forKey: "collageCountMode") ?? "") ?? .fixed
         collageCount = defaults.integer(forKey: "collageCount").nonZero ?? 4
+        collageRangeMin = defaults.integer(forKey: "collageRangeMin").nonZero ?? 3
+        collageRangeMax = defaults.integer(forKey: "collageRangeMax").nonZero ?? 6
         musicEnabled = defaults.object(forKey: "musicEnabled") as? Bool ?? false
         musicVolume = defaults.object(forKey: "musicVolume") as? Double ?? 0.6
         musicTracks = Self.load(key: "musicTracks") ?? []
