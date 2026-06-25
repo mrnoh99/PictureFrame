@@ -36,7 +36,12 @@ final class LightroomService: PhotoProvider {
 
     func fetchPhotos(in selection: AlbumSelection) async throws -> [FramePhoto] {
         guard await auth.isAuthenticated else { throw PhotoProviderError.notAuthenticated }
-        let catalogID = selection.catalogID ?? (try await api.fetchCatalog().id)
+        let catalogID: String
+        if let existingCatalogID = selection.catalogID {
+            catalogID = existingCatalogID
+        } else {
+            catalogID = try await api.fetchCatalog().id
+        }
         let assets = try await api.fetchAssets(catalogID: catalogID, albumID: selection.albumID)
 
         var photos: [FramePhoto] = []
