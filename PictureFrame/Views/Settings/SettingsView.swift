@@ -144,8 +144,8 @@ struct SettingsView: View {
         case .zoomOut:        return "Zoom Out"
         case .pushUp:         return "Push Up"
         case .pushDown:       return "Push Down"
-        case .blurFade:       return "Blur Fade"
-        case .flip3D:         return "3D Flip"
+        case .blur:           return "Blur"
+        case .flip:           return "Flip"
         case .mixed:          return "Mixed"
         case .randomSelected: return "Random Pick"
         }
