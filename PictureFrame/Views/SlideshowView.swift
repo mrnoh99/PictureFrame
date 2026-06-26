@@ -1,38 +1,93 @@
 import SwiftUI
 
 /// 한 장씩 Ken Burns(팬/줌) 효과와 크로스페이드로 전환하는 슬라이드쇼 뷰.
+/// 이전 사진을 그대로 둔 채 다음 사진을 그 위에 겹쳐 나타나게 해(레이어 누적),
+/// 전환 도중 검은 화면이 끼어들지 않도록 한다.
 struct SlideshowView: View {
     @ObservedObject var viewModel: FrameViewModel
     @EnvironmentObject private var settings: SettingsStore
 
-    /// 현재 표시 중인 사진 ID 를 추적해 애니메이션을 트리거한다.
-    @State private var displayedIndex: Int = 0
+    /// 화면에 쌓인 슬라이드 레이어. 마지막 항목이 맨 위(현재 사진).
+    @State private var slides: [SlideItem] = []
+    /// 슬라이드 고유 id 생성용 카운터.
+    @State private var tick = 0
+    /// 전환 후 이전 레이어 정리 작업.
+    @State private var pruneTask: Task<Void, Never>?
+
+    private let transitionDuration: TimeInterval = 0.9
+
+    struct SlideItem: Identifiable {
+        let id: Int        // 누적 카운터(고유)
+        let index: Int     // viewModel.photos 인덱스(패턴/전환 선택용)
+        let photo: FramePhoto
+    }
 
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
 
-            if !viewModel.photos.isEmpty {
-                let photo = viewModel.photos[viewModel.currentIndex]
+            ForEach(slides) { slide in
                 KenBurnsPhotoView(
-                    photo: photo,
+                    photo: slide.photo,
                     viewModel: viewModel,
                     enabled: settings.kenBurnsEnabled,
                     intensity: CGFloat(settings.kenBurnsIntensity),
                     duration: settings.slideInterval,
-                    sequence: viewModel.currentIndex,
+                    sequence: slide.index,
                     fitStyle: settings.slideshowFitStyle
                 )
-                .id(viewModel.currentIndex)  // ID 변경 시 뷰 교체 → 전환 효과 적용
-                .transition(settings.slideTransition.resolved(
-                    pool: settings.selectedTransitions,
-                    index: viewModel.currentIndex
+                // 삽입(나타날 때)에만 효과 적용 → 이전 레이어는 그대로 남아 겹쳐 보인다.
+                // 제거는 즉시(.identity): 새 사진이 완전히 덮은 뒤라 보이지 않는다.
+                .transition(.asymmetric(
+                    insertion: settings.slideTransition.resolved(
+                        pool: settings.selectedTransitions,
+                        index: slide.index
+                    ),
+                    removal: .identity
                 ))
             }
         }
-        .animation(.easeInOut(duration: 0.8), value: viewModel.currentIndex)
         .gesture(swipeGesture)
         .ignoresSafeArea()
+        .onAppear { syncInitialSlide() }
+        .onChange(of: viewModel.currentIndex) { _, _ in pushCurrentSlide() }
+        .onChange(of: viewModel.photos.count) { _, _ in resetSlides() }
+    }
+
+    /// 최초 진입 시 현재 사진을 첫 레이어로 깐다.
+    private func syncInitialSlide() {
+        guard slides.isEmpty, let photo = currentPhoto else { return }
+        tick += 1
+        slides = [SlideItem(id: tick, index: viewModel.currentIndex, photo: photo)]
+    }
+
+    /// 사진 목록이 바뀌면 레이어를 새로 시작한다.
+    private func resetSlides() {
+        pruneTask?.cancel()
+        slides = []
+        syncInitialSlide()
+    }
+
+    /// 다음 사진을 새 레이어로 얹고(겹침 전환), 전환이 끝나면 이전 레이어를 정리한다.
+    private func pushCurrentSlide() {
+        guard let photo = currentPhoto else { return }
+        tick += 1
+        let item = SlideItem(id: tick, index: viewModel.currentIndex, photo: photo)
+        withAnimation(.easeInOut(duration: transitionDuration)) {
+            slides.append(item)
+        }
+        pruneTask?.cancel()
+        pruneTask = Task {
+            try? await Task.sleep(nanoseconds: UInt64((transitionDuration + 0.05) * 1_000_000_000))
+            guard !Task.isCancelled else { return }
+            // 맨 위 레이어만 남긴다(애니메이션 없이 즉시 → 보이지 않게 제거).
+            if slides.count > 1 { slides = Array(slides.suffix(1)) }
+        }
+    }
+
+    private var currentPhoto: FramePhoto? {
+        guard viewModel.photos.indices.contains(viewModel.currentIndex) else { return nil }
+        return viewModel.photos[viewModel.currentIndex]
     }
 
     private var swipeGesture: some Gesture {
