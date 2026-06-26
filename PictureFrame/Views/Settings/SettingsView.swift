@@ -16,6 +16,7 @@ struct SettingsView: View {
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
     @State private var showMusicImporter = false
     @State private var showFolderImporter = false
+    @State private var showPhotoFolderImporter = false
     @State private var musicImportError: String?
     @State private var pendingSourceInfo: String?
 
@@ -205,8 +206,7 @@ struct SettingsView: View {
                 } else {
                     ForEach(settings.selectedAlbums) { selection in
                         HStack {
-                            Image(systemName: selection.source == .photoLibrary
-                                  ? "photo.on.rectangle" : "camera.filters")
+                            Image(systemName: selection.source.systemImage)
                                 .foregroundStyle(.accent)
                             VStack(alignment: .leading) {
                                 Text(selection.title).font(.body)
@@ -229,6 +229,12 @@ struct SettingsView: View {
                     showAlbumPicker = true
                 } label: {
                     Label("iOS 사진 앨범", systemImage: "photo.on.rectangle")
+                }
+
+                Button {
+                    showPhotoFolderImporter = true
+                } label: {
+                    Label("폴더에서 사진 선택", systemImage: "folder.badge.plus")
                 }
 
                 if AppConfig.Lightroom.partnerApprovalPending {
@@ -276,6 +282,23 @@ struct SettingsView: View {
             Button("확인", role: .cancel) { pendingSourceInfo = nil }
         } message: {
             Text(pendingSourceInfo ?? "")
+        }
+        .fileImporter(
+            isPresented: $showPhotoFolderImporter,
+            allowedContentTypes: [.folder],
+            allowsMultipleSelection: false
+        ) { result in
+            importPhotoFolder(result)
+        }
+    }
+
+    /// 폴더를 사진 소스로 등록한다.
+    private func importPhotoFolder(_ result: Result<[URL], Error>) {
+        guard let folder = try? result.get().first else { return }
+        do {
+            try settings.addFolderAlbum(url: folder)
+        } catch {
+            pendingSourceInfo = "폴더를 등록하지 못했습니다: \(error.localizedDescription)"
         }
     }
 

@@ -23,11 +23,21 @@ struct FramePhoto: Identifiable, Hashable {
 enum PhotoSourceKind: String, Codable, Hashable {
     case photoLibrary
     case lightroom
+    case folder
 
     var displayName: String {
         switch self {
         case .photoLibrary: return "iOS 사진"
         case .lightroom: return "Lightroom"
+        case .folder: return "폴더"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .photoLibrary: return "photo.on.rectangle"
+        case .lightroom: return "camera.filters"
+        case .folder: return "folder.fill"
         }
     }
 }

@@ -25,6 +25,11 @@ final class SettingsStore: ObservableObject {
         didSet { save(selectedAlbums, key: "selectedAlbums") }
     }
 
+    /// 폴더 사진 소스의 보안 스코프 북마크 (앨범ID → 북마크 데이터).
+    @Published var folderBookmarks: [String: Data] {
+        didSet { save(folderBookmarks, key: "folderBookmarks") }
+    }
+
     // MARK: - 표시 모드
 
     @Published var displayMode: DisplayMode {
@@ -153,6 +158,7 @@ final class SettingsStore: ObservableObject {
     init() {
         let defaults = UserDefaults.standard
         selectedAlbums = Self.load(key: "selectedAlbums") ?? []
+        folderBookmarks = Self.load(key: "folderBookmarks") ?? [:]
         displayMode = DisplayMode(rawValue: defaults.string(forKey: "displayMode") ?? "") ?? .slideshow
         slideInterval = defaults.double(forKey: "slideInterval").nonZero ?? AppConfig.defaultSlideInterval
         kenBurnsEnabled = defaults.object(forKey: "kenBurnsEnabled") as? Bool ?? true
@@ -192,6 +198,19 @@ final class SettingsStore: ObservableObject {
 
     func removeAlbum(_ selection: AlbumSelection) {
         selectedAlbums.removeAll { $0 == selection }
+        if selection.source == .folder {
+            folderBookmarks[selection.albumID] = nil
+        }
+    }
+
+    /// 폴더를 사진 소스로 등록한다. 보안 스코프 북마크를 저장하고 앨범으로 추가.
+    func addFolderAlbum(url: URL) throws {
+        let needsScope = url.startAccessingSecurityScopedResource()
+        defer { if needsScope { url.stopAccessingSecurityScopedResource() } }
+        let bookmark = try url.bookmarkData(options: [], includingResourceValuesForKeys: nil, relativeTo: nil)
+        let albumID = UUID().uuidString
+        folderBookmarks[albumID] = bookmark
+        addAlbum(AlbumSelection(source: .folder, albumID: albumID, title: url.lastPathComponent))
     }
 }
 

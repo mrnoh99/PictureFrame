@@ -85,6 +85,9 @@ struct AlbumPickerView: View {
                 }
                 let service = LightroomService(auth: lightroomAuth)
                 albums = try await service.fetchAlbums()
+            case .folder:
+                // 폴더는 앨범 선택 화면을 쓰지 않고 파일 임포터로 직접 등록한다.
+                albums = []
             }
         } catch {
             self.error = error.localizedDescription

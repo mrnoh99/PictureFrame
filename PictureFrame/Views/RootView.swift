@@ -7,6 +7,9 @@ struct RootView: View {
     @EnvironmentObject private var audioPlayer: AudioPlayerService
     @Environment(\.scenePhase) private var scenePhase
     @State private var showSettings = false
+    /// 액자(play) 화면에서 설정 버튼 노출 여부. 화면을 터치하면 잠시 나타난다.
+    @State private var controlsVisible = false
+    @State private var hideControlsTask: Task<Void, Never>?
 
     private let photoLib = PhotoLibraryService()
 
@@ -16,10 +19,12 @@ struct RootView: View {
                 WelcomeView(showSettings: $showSettings)
             } else {
                 frameView
+                    // 화면을 터치하면 설정 버튼이 나타난다(잠시 후 자동으로 숨김).
+                    .onTapGesture { revealControls() }
             }
 
-            // 항상 접근 가능한 설정 버튼 (액자 모드에서도 노출)
-            if !settings.selectedAlbums.isEmpty {
+            // 액자 모드에서는 터치 시에만 설정 버튼이 보인다.
+            if !settings.selectedAlbums.isEmpty && controlsVisible {
                 Button { showSettings = true } label: {
                     Image(systemName: "gearshape.fill")
                         .font(.title2)
@@ -28,6 +33,7 @@ struct RootView: View {
                         .background(.ultraThinMaterial, in: Circle())
                 }
                 .padding()
+                .transition(.opacity)
             }
         }
         .fullScreenCover(isPresented: $showSettings) {
@@ -43,6 +49,17 @@ struct RootView: View {
         .onChange(of: scenePhase) { _, phase in
             // 백그라운드 진입 시 일시정지, 복귀 시 재개.
             if phase == .active { syncMusic() } else { audioPlayer.pause() }
+        }
+    }
+
+    /// 화면 터치 시 설정 버튼을 표시하고, 3초 후 자동으로 숨긴다.
+    private func revealControls() {
+        withAnimation { controlsVisible = true }
+        hideControlsTask?.cancel()
+        hideControlsTask = Task {
+            try? await Task.sleep(nanoseconds: 3_000_000_000)
+            guard !Task.isCancelled else { return }
+            withAnimation { controlsVisible = false }
         }
     }
 
@@ -64,7 +81,9 @@ struct RootView: View {
     @ViewBuilder
     private var frameView: some View {
         let lightroomService = LightroomService(auth: lightroomAuth)
-        let vm = FrameViewModel(settings: settings, photoLib: photoLib, lightroom: lightroomService)
+        let folderService = FolderPhotoService(settings: settings)
+        let vm = FrameViewModel(settings: settings, photoLib: photoLib,
+                                lightroom: lightroomService, folder: folderService)
         FrameContainerView(viewModel: vm)
     }
 }

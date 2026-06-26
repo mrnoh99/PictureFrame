@@ -16,16 +16,18 @@ final class FrameViewModel: ObservableObject {
     private let settings: SettingsStore
     private let photoLib: PhotoLibraryService
     private let lightroom: LightroomService
+    private let folder: FolderPhotoService
 
     private var slideTimer: Timer?
     private var cancellables = Set<AnyCancellable>()
     /// 진행 중인 prefetch 작업(사진 ID 기준, 중복 다운로드 방지).
     private var prefetchTasks: [String: Task<Void, Never>] = [:]
 
-    init(settings: SettingsStore, photoLib: PhotoLibraryService, lightroom: LightroomService) {
+    init(settings: SettingsStore, photoLib: PhotoLibraryService, lightroom: LightroomService, folder: FolderPhotoService) {
         self.settings = settings
         self.photoLib = photoLib
         self.lightroom = lightroom
+        self.folder = folder
 
         settings.$selectedAlbums
             .debounce(for: .seconds(0.5), scheduler: DispatchQueue.main)
@@ -49,8 +51,7 @@ final class FrameViewModel: ObservableObject {
         var allPhotos: [FramePhoto] = []
         for selection in settings.selectedAlbums {
             do {
-                let provider: PhotoProvider = selection.source == .photoLibrary ? photoLib : lightroom
-                let fetched = try await provider.fetchPhotos(in: selection)
+                let fetched = try await provider(for: selection.source).fetchPhotos(in: selection)
                 allPhotos.append(contentsOf: fetched)
             } catch {
                 errorMessage = error.localizedDescription
@@ -108,6 +109,15 @@ final class FrameViewModel: ObservableObject {
 
     // MARK: - 이미지 로드
 
+    /// 사진 출처에 맞는 Provider 를 반환한다.
+    private func provider(for source: PhotoSourceKind) -> PhotoProvider {
+        switch source {
+        case .photoLibrary: return photoLib
+        case .lightroom:    return lightroom
+        case .folder:       return folder
+        }
+    }
+
     func loadImage(for photo: FramePhoto, targetSize: CGSize) async -> UIImage? {
         // 원본이 아무리 커도 화면 크기에 맞는 해상도로만 요청/다운로드한다.
         let size = clampToScreen(targetSize)
@@ -122,7 +132,7 @@ final class FrameViewModel: ObservableObject {
             return disk
         }
         // 3) 화면 크기에 맞춰 다운로드 후 메모리+디스크 저장.
-        let provider: PhotoProvider = photo.source == .photoLibrary ? photoLib : lightroom
+        let provider = provider(for: photo.source)
         guard let image = try? await provider.loadImage(for: photo, targetSize: size) else {
             return nil
         }
