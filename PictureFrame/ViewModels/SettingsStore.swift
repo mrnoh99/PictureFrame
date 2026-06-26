@@ -140,6 +140,11 @@ final class SettingsStore: ObservableObject {
         didSet { UserDefaults.standard.set(showWeather, forKey: "showWeather") }
     }
 
+    /// UI 표시 언어 ("ko" = 한국어, "en" = English).
+    @Published var appLanguage: String {
+        didSet { UserDefaults.standard.set(appLanguage, forKey: "appLanguage") }
+    }
+
     /// 음악 파일이 저장되는 디렉터리 (Documents/Music).
     static let musicDirectory: URL = {
         let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
@@ -182,6 +187,7 @@ final class SettingsStore: ObservableObject {
         musicFolderName = defaults.string(forKey: "musicFolderName")
         showClock = defaults.object(forKey: "showClock") as? Bool ?? false
         showWeather = defaults.object(forKey: "showWeather") as? Bool ?? false
+        appLanguage = defaults.string(forKey: "appLanguage") ?? "ko"
     }
 
     // MARK: - 헬퍼

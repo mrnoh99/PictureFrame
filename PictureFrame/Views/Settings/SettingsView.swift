@@ -20,7 +20,6 @@ struct SettingsView: View {
     @State private var musicImportError: String?
     @State private var pendingSourceInfo: String?
 
-    /// 사이드바 항목. 표시 방식(슬라이드쇼/그리드)을 사이드바에서 바로 고른다.
     enum SettingsSection: String, CaseIterable, Identifiable, Hashable {
         case albums, slideshow, grid, music, overlay, lightroom
         var id: String { rawValue }
@@ -29,44 +28,65 @@ struct SettingsView: View {
 
         var title: String {
             switch self {
-            case .albums: return "앨범 소스"
+            case .albums:    return "앨범 소스"
             case .slideshow: return "슬라이드쇼"
-            case .grid: return "그리드"
-            case .music: return "배경음악"
-            case .overlay: return "위젯 오버레이"
+            case .grid:      return "그리드"
+            case .music:     return "배경음악"
+            case .overlay:   return "위젯 오버레이"
             case .lightroom: return "Lightroom 계정"
+            }
+        }
+
+        var titleEn: String {
+            switch self {
+            case .albums:    return "Album Source"
+            case .slideshow: return "Slideshow"
+            case .grid:      return "Grid"
+            case .music:     return "Music"
+            case .overlay:   return "Widgets"
+            case .lightroom: return "Lightroom"
             }
         }
 
         var systemImage: String {
             switch self {
-            case .albums: return "photo.on.rectangle.angled"
+            case .albums:    return "photo.on.rectangle.angled"
             case .slideshow: return "play.rectangle"
-            case .grid: return "square.grid.2x2"
-            case .music: return "music.note"
-            case .overlay: return "clock"
+            case .grid:      return "square.grid.2x2"
+            case .music:     return "music.note"
+            case .overlay:   return "clock"
             case .lightroom: return "camera.filters"
             }
         }
     }
 
+    // MARK: - Body
+
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
-            // MARK: 사이드바
             List(selection: $selection) {
+                // 언어 선택 — 사이드바 최상단
+                Section {
+                    Picker("", selection: $settings.appLanguage) {
+                        Text("한국어").tag("ko")
+                        Text("English").tag("en")
+                    }
+                    .pickerStyle(.segmented)
+                }
+
                 ForEach(SettingsSection.sidebarCases) { section in
-                    Label(section.title, systemImage: section.systemImage)
+                    Label(sectionTitle(section), systemImage: section.systemImage)
                         .tag(section)
                 }
             }
-            .navigationTitle("설정")
+            .navigationTitle(t("설정", "Settings"))
             .navigationSplitViewColumnWidth(min: 240, ideal: 280, max: 340)
             .safeAreaInset(edge: .bottom) {
                 VStack(spacing: 8) {
                     Button {
                         dismiss()
                     } label: {
-                        Label("쇼 시작", systemImage: "play.fill")
+                        Label(t("쇼 시작", "Start Show"), systemImage: "play.fill")
                             .font(.headline)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 6)
@@ -85,10 +105,9 @@ struct SettingsView: View {
                 .background(.bar)
             }
         } detail: {
-            // MARK: 디테일
             NavigationStack {
                 detailView(for: selection ?? .albums)
-                    .navigationTitle((selection ?? .albums).title)
+                    .navigationTitle(sectionTitle(selection ?? .albums))
                     .navigationBarTitleDisplayMode(.inline)
             }
         }
@@ -96,13 +115,47 @@ struct SettingsView: View {
         .sheet(isPresented: $showAlbumPicker) {
             AlbumPickerView(source: albumSource, photoLib: photoLib)
         }
-        // 사이드바에서 슬라이드쇼/그리드를 고르면 곧바로 표시 방식이 바뀐다.
         .onChange(of: selection) { _, newValue in
             switch newValue {
             case .slideshow: settings.displayMode = .slideshow
             case .grid:      settings.displayMode = .grid
             default:         break
             }
+        }
+    }
+
+    // MARK: - 번역 헬퍼
+
+    private func t(_ ko: String, _ en: String) -> String {
+        settings.appLanguage == "en" ? en : ko
+    }
+
+    private func sectionTitle(_ section: SettingsSection) -> String {
+        settings.appLanguage == "en" ? section.titleEn : section.title
+    }
+
+    private func transitionName(_ tr: SlideTransition) -> String {
+        guard settings.appLanguage == "en" else { return tr.displayName }
+        switch tr {
+        case .crossfade:      return "Crossfade"
+        case .slide:          return "Slide"
+        case .push:           return "Push"
+        case .zoom:           return "Zoom In"
+        case .zoomOut:        return "Zoom Out"
+        case .pushUp:         return "Push Up"
+        case .pushDown:       return "Push Down"
+        case .blurFade:       return "Blur Fade"
+        case .flip3D:         return "3D Flip"
+        case .mixed:          return "Mixed"
+        case .randomSelected: return "Random Pick"
+        }
+    }
+
+    private func fitStyleName(_ style: CollageFitStyle) -> String {
+        guard settings.appLanguage == "en" else { return style.displayName }
+        switch style {
+        case .blurFill: return "Blur Background"
+        case .aspect:   return "Aspect Fit"
         }
     }
 
@@ -125,22 +178,22 @@ struct SettingsView: View {
     private var overlayDetail: some View {
         Form {
             Section {
-                Toggle("시계·날짜 표시", isOn: $settings.showClock)
+                Toggle(t("시계·날짜 표시", "Show Clock & Date"), isOn: $settings.showClock)
             } header: {
-                Text("시계")
+                Text(t("시계", "Clock"))
             }
 
             Section {
-                Toggle("날씨 표시", isOn: $settings.showWeather)
+                Toggle(t("날씨 표시", "Show Weather"), isOn: $settings.showWeather)
             } header: {
-                Text("날씨")
+                Text(t("날씨", "Weather"))
             } footer: {
-                Text("현재 위치의 날씨를 액자 위에 표시합니다.")
+                Text(t("현재 위치의 날씨를 액자 위에 표시합니다.",
+                       "Displays current location weather over the frame."))
             }
 
-            // 날씨를 켰을 때 사용 가능 여부를 안내.
             if settings.showWeather {
-                Section("날씨 상태") {
+                Section(t("날씨 상태", "Weather Status")) {
                     HStack(spacing: 12) {
                         Image(systemName: weatherStatusIcon)
                             .font(.title3)
@@ -156,7 +209,7 @@ struct SettingsView: View {
                     if weather.availability.isOK, let temp = weather.temperatureText {
                         HStack {
                             Image(systemName: weather.symbolName).symbolRenderingMode(.multicolor)
-                            Text("현재 \(temp)")
+                            Text(t("현재 \(temp)", "Current \(temp)"))
                             if let c = weather.conditionText { Text("· \(c)").foregroundStyle(.secondary) }
                         }
                         .font(.callout)
@@ -187,11 +240,11 @@ struct SettingsView: View {
 
     private var weatherStatusTitle: String {
         switch weather.availability {
-        case .idle:        return "대기 중"
-        case .requesting:  return "확인 중…"
-        case .denied:      return "위치 권한 없음"
-        case .available:   return "사용 가능"
-        case .unavailable: return "사용 불가"
+        case .idle:        return t("대기 중", "Idle")
+        case .requesting:  return t("확인 중…", "Checking…")
+        case .denied:      return t("위치 권한 없음", "Location Denied")
+        case .available:   return t("사용 가능", "Available")
+        case .unavailable: return t("사용 불가", "Unavailable")
         }
     }
 
@@ -199,18 +252,18 @@ struct SettingsView: View {
 
     private var albumsDetail: some View {
         Form {
-            Section("선택된 앨범") {
+            Section(t("선택된 앨범", "Selected Albums")) {
                 if settings.selectedAlbums.isEmpty {
-                    Text("아직 앨범을 선택하지 않았습니다")
+                    Text(t("아직 앨범을 선택하지 않았습니다", "No albums selected yet"))
                         .foregroundStyle(.secondary)
                 } else {
-                    ForEach(settings.selectedAlbums) { selection in
+                    ForEach(settings.selectedAlbums) { sel in
                         HStack {
-                            Image(systemName: selection.source.systemImage)
+                            Image(systemName: sel.source.systemImage)
                                 .foregroundStyle(.accent)
                             VStack(alignment: .leading) {
-                                Text(selection.title).font(.body)
-                                Text(selection.source.displayName)
+                                Text(sel.title).font(.body)
+                                Text(sel.source.displayName)
                                     .font(.caption).foregroundStyle(.secondary)
                             }
                         }
@@ -223,25 +276,26 @@ struct SettingsView: View {
                 }
             }
 
-            Section("앨범 추가") {
+            Section(t("앨범 추가", "Add Albums")) {
                 Button {
                     albumSource = .photoLibrary
                     showAlbumPicker = true
                 } label: {
-                    Label("iOS 사진 앨범", systemImage: "photo.on.rectangle")
+                    Label(t("iOS 사진 앨범", "iOS Photo Library"), systemImage: "photo.on.rectangle")
                 }
 
                 Button {
                     showPhotoFolderImporter = true
                 } label: {
-                    Label("폴더에서 사진 선택", systemImage: "folder.badge.plus")
+                    Label(t("폴더에서 사진 선택", "Select Photo Folder"), systemImage: "folder.badge.plus")
                 }
 
                 if AppConfig.Lightroom.partnerApprovalPending {
                     Button {
                         selection = .lightroom
                     } label: {
-                        Label("Lightroom (승인 대기 중)", systemImage: "clock.badge.exclamationmark")
+                        Label(t("Lightroom (승인 대기 중)", "Lightroom (Pending Approval)"),
+                              systemImage: "clock.badge.exclamationmark")
                             .foregroundStyle(.orange)
                     }
                 } else if AppConfig.Lightroom.isConfigured {
@@ -249,37 +303,46 @@ struct SettingsView: View {
                         albumSource = .lightroom
                         showAlbumPicker = true
                     } label: {
-                        Label("Lightroom 앨범", systemImage: "camera.filters")
+                        Label(t("Lightroom 앨범", "Lightroom Albums"), systemImage: "camera.filters")
                     }
                 } else {
                     Button {
                         selection = .lightroom
                     } label: {
-                        Label("Lightroom 설정 필요", systemImage: "exclamationmark.triangle")
+                        Label(t("Lightroom 설정 필요", "Lightroom Setup Required"),
+                              systemImage: "exclamationmark.triangle")
                             .foregroundStyle(.orange)
                     }
                 }
 
-                // 클라우드 소스(연동 준비 중)
                 Button {
-                    pendingSourceInfo = "네이버 MyBox 연동은 준비 중입니다. 네이버 OAuth 앱 등록과 API 승인 후 사용할 수 있습니다."
+                    pendingSourceInfo = t(
+                        "네이버 MyBox 연동은 준비 중입니다. 네이버 OAuth 앱 등록과 API 승인 후 사용할 수 있습니다.",
+                        "Naver MyBox integration is coming soon. Available after OAuth app registration and API approval."
+                    )
                 } label: {
-                    Label("네이버 MyBox (준비 중)", systemImage: "clock.badge.exclamationmark")
+                    Label(t("네이버 MyBox (준비 중)", "Naver MyBox (Coming Soon)"),
+                          systemImage: "clock.badge.exclamationmark")
                         .foregroundStyle(.orange)
                 }
+
                 Button {
-                    pendingSourceInfo = "구글 포토 연동은 준비 중입니다. Google Photos API OAuth 클라이언트 등록과 승인 후 사용할 수 있습니다."
+                    pendingSourceInfo = t(
+                        "구글 포토 연동은 준비 중입니다. Google Photos API OAuth 클라이언트 등록과 승인 후 사용할 수 있습니다.",
+                        "Google Photos integration is coming soon. Available after OAuth client registration and approval."
+                    )
                 } label: {
-                    Label("구글 포토 (준비 중)", systemImage: "clock.badge.exclamationmark")
+                    Label(t("구글 포토 (준비 중)", "Google Photos (Coming Soon)"),
+                          systemImage: "clock.badge.exclamationmark")
                         .foregroundStyle(.orange)
                 }
             }
         }
-        .alert("연동 준비 중", isPresented: Binding(
+        .alert(t("연동 준비 중", "Coming Soon"), isPresented: Binding(
             get: { pendingSourceInfo != nil },
             set: { if !$0 { pendingSourceInfo = nil } }
         )) {
-            Button("확인", role: .cancel) { pendingSourceInfo = nil }
+            Button(t("확인", "OK"), role: .cancel) { pendingSourceInfo = nil }
         } message: {
             Text(pendingSourceInfo ?? "")
         }
@@ -292,13 +355,15 @@ struct SettingsView: View {
         }
     }
 
-    /// 폴더를 사진 소스로 등록한다.
     private func importPhotoFolder(_ result: Result<[URL], Error>) {
         guard let folder = try? result.get().first else { return }
         do {
             try settings.addFolderAlbum(url: folder)
         } catch {
-            pendingSourceInfo = "폴더를 등록하지 못했습니다: \(error.localizedDescription)"
+            pendingSourceInfo = t(
+                "폴더를 등록하지 못했습니다: \(error.localizedDescription)",
+                "Failed to register folder: \(error.localizedDescription)"
+            )
         }
     }
 
@@ -307,16 +372,17 @@ struct SettingsView: View {
     private var gridDetail: some View {
         Form {
             Section {
-                Text("전체 사진을 격자 갤러리 형태로 한눈에 보여주고 스크롤할 수 있습니다.")
+                Text(t("전체 사진을 격자 갤러리 형태로 한눈에 보여주고 스크롤할 수 있습니다.",
+                       "View all photos in a scrollable grid gallery."))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             } header: {
-                Text("그리드")
+                Text(t("그리드", "Grid"))
             }
         }
     }
 
-    // MARK: 쇼(슬라이드쇼/콜라주) 장수·채움 설정
+    // MARK: 장수·채움 공통 섹션
 
     @ViewBuilder
     private var showCountSections: some View {
@@ -324,21 +390,26 @@ struct SettingsView: View {
             let lo = min(settings.collageRangeMin, settings.collageRangeMax)
             let hi = max(settings.collageRangeMin, settings.collageRangeMax)
             HStack {
-                Text("한 화면 사진 수")
+                Text(t("한 화면 사진 수", "Photos per Scene"))
                 Spacer()
-                Text(lo == hi ? "\(lo)장 (고정)" : "\(lo)~\(hi)장 (무작위)")
+                Text(lo == hi
+                     ? t("\(lo)장 (고정)", "\(lo) (fixed)")
+                     : t("\(lo)~\(hi)장 (무작위)", "\(lo)–\(hi) (random)"))
                     .foregroundStyle(.secondary)
             }
             Stepper(value: $settings.collageRangeMin, in: 1...9) {
-                Text("최소 \(settings.collageRangeMin)장")
+                Text(t("최소 \(settings.collageRangeMin)장", "Min \(settings.collageRangeMin)"))
             }
             Stepper(value: $settings.collageRangeMax, in: 1...9) {
-                Text("최대 \(settings.collageRangeMax)장")
+                Text(t("최대 \(settings.collageRangeMax)장", "Max \(settings.collageRangeMax)"))
             }
         } header: {
-            Text("장수")
+            Text(t("장수", "Count"))
         } footer: {
-            Text("최소·최대를 같게 하면 고정 장수, 다르게 하면 그 범위 안에서 장면마다 무작위로 정해집니다. 1장이면 한 장씩 슬라이드쇼, 2장 이상이면 콜라주 형태로 재생됩니다.")
+            Text(t(
+                "최소·최대를 같게 하면 고정 장수, 다르게 하면 그 범위 안에서 장면마다 무작위로 정해집니다. 1장이면 한 장씩 슬라이드쇼, 2장 이상이면 콜라주 형태로 재생됩니다.",
+                "Equal min/max = fixed count; different = random per scene. 1 photo = slideshow, 2+ = collage."
+            ))
         }
     }
 
@@ -346,54 +417,55 @@ struct SettingsView: View {
 
     private var slideshowDetail: some View {
         Form {
-            // 장수(1장=한 장씩, 2장 이상=콜라주)
             showCountSections
 
-            Section("사진 채움 방식") {
-                Picker("채움 방식", selection: $settings.slideshowFitStyle) {
+            Section(t("사진 채움 방식", "Photo Fill")) {
+                Picker(t("채움 방식", "Fill Style"), selection: $settings.slideshowFitStyle) {
                     ForEach(CollageFitStyle.allCases) { style in
-                        Text(style.displayName).tag(style)
+                        Text(fitStyleName(style)).tag(style)
                     }
                 }
                 .pickerStyle(.segmented)
 
                 Text(settings.slideshowFitStyle == .blurFill
-                     ? "사진 전체를 보여주고, 남는 여백은 블러 배경으로 채웁니다."
-                     : "사진 전체를 비율 그대로 보여줍니다(남는 부분은 검은 여백).")
+                     ? t("사진 전체를 보여주고, 남는 여백은 블러 배경으로 채웁니다.",
+                         "Shows the full photo; remaining space is filled with a blurred background.")
+                     : t("사진 전체를 비율 그대로 보여줍니다(남는 부분은 검은 여백).",
+                         "Shows the full photo at its aspect ratio (black letterbox)."))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
 
             Section {
                 HStack {
-                    Text("전환 간격")
+                    Text(t("전환 간격", "Interval"))
                     Spacer()
-                    Text("\(Int(settings.slideInterval))초").foregroundStyle(.secondary)
+                    Text(t("\(Int(settings.slideInterval))초", "\(Int(settings.slideInterval))s"))
+                        .foregroundStyle(.secondary)
                 }
                 Slider(value: $settings.slideInterval, in: 2...60, step: 1) {
-                    Text("전환 간격")
+                    Text(t("전환 간격", "Interval"))
                 } minimumValueLabel: {
-                    Text("2초").font(.caption2)
+                    Text(t("2초", "2s")).font(.caption2)
                 } maximumValueLabel: {
-                    Text("60초").font(.caption2)
+                    Text(t("60초", "60s")).font(.caption2)
                 }
             } header: {
-                Text("전환 속도")
+                Text(t("전환 속도", "Transition Speed"))
             } footer: {
-                Text("사진이 다음 장으로 넘어가는 간격입니다. (2초 ~ 60초)")
+                Text(t("사진이 다음 장으로 넘어가는 간격입니다. (2초 ~ 60초)",
+                       "Interval between photo transitions. (2s – 60s)"))
             }
 
-            // 전환 효과는 장수(고정/무작위)와 상관없이 항상 적용된다.
-            Section("전환 효과") {
-                Picker("전환 효과", selection: $settings.slideTransition) {
+            Section(t("전환 효과", "Transition Effect")) {
+                Picker(t("전환 효과", "Effect"), selection: $settings.slideTransition) {
                     ForEach(SlideTransition.allCases) { transition in
-                        Text(transition.displayName).tag(transition)
+                        Text(transitionName(transition)).tag(transition)
                     }
                 }
                 .pickerStyle(.menu)
             }
 
-            // 랜덤 선택 모드: 효과를 최대 5개 골라 무작위 적용.
             if settings.slideTransition == .randomSelected {
                 Section {
                     ForEach(SlideTransition.concreteEffects) { effect in
@@ -402,11 +474,10 @@ struct SettingsView: View {
                             toggleTransition(effect)
                         } label: {
                             HStack {
-                                Text(effect.displayName)
+                                Text(transitionName(effect))
                                 Spacer()
                                 if isOn {
-                                    Image(systemName: "checkmark")
-                                        .foregroundStyle(.tint)
+                                    Image(systemName: "checkmark").foregroundStyle(.tint)
                                 }
                             }
                         }
@@ -414,26 +485,27 @@ struct SettingsView: View {
                         .disabled(!isOn && settings.selectedTransitions.count >= SlideTransition.maxRandomSelection)
                     }
                 } header: {
-                    Text("적용할 효과 (최대 \(SlideTransition.maxRandomSelection)개)")
+                    Text(t("적용할 효과 (최대 \(SlideTransition.maxRandomSelection)개)",
+                           "Effects to apply (max \(SlideTransition.maxRandomSelection))"))
                 } footer: {
-                    Text("선택한 \(settings.selectedTransitions.count)개 효과 중 무작위로 적용됩니다.")
+                    Text(t("선택한 \(settings.selectedTransitions.count)개 효과 중 무작위로 적용됩니다.",
+                           "\(settings.selectedTransitions.count) effect(s) selected; applied randomly."))
                 }
             }
 
-            // Ken Burns(팬/줌)는 한 장씩(단일) 재생일 때 적용된다.
             if settings.isSinglePhotoShow {
                 Section {
-                    Toggle("Ken Burns 효과", isOn: $settings.kenBurnsEnabled)
+                    Toggle(t("Ken Burns 효과", "Ken Burns Effect"), isOn: $settings.kenBurnsEnabled)
 
                     if settings.kenBurnsEnabled {
                         HStack {
-                            Text("강도")
+                            Text(t("강도", "Intensity"))
                             Spacer()
                             Text("\(Int((settings.kenBurnsIntensity * 100).rounded()))%")
                                 .foregroundStyle(.secondary)
                         }
                         Slider(value: $settings.kenBurnsIntensity, in: 0...1, step: 0.05) {
-                            Text("강도")
+                            Text(t("강도", "Intensity"))
                         } minimumValueLabel: {
                             Text("0%").font(.caption2)
                         } maximumValueLabel: {
@@ -441,15 +513,15 @@ struct SettingsView: View {
                         }
                     }
                 } header: {
-                    Text("효과")
+                    Text(t("효과", "Effect"))
                 } footer: {
-                    Text("강도가 높을수록 팬/줌 움직임이 커집니다. 0%면 움직임 없이 고정됩니다.")
+                    Text(t("강도가 높을수록 팬/줌 움직임이 커집니다. 0%면 움직임 없이 고정됩니다.",
+                           "Higher intensity means more pan/zoom movement. 0% = no movement."))
                 }
             }
         }
     }
 
-    /// 랜덤 선택 효과 목록에서 토글(최대 개수 초과 시 추가 안 함).
     private func toggleTransition(_ effect: SlideTransition) {
         if let idx = settings.selectedTransitions.firstIndex(of: effect) {
             settings.selectedTransitions.remove(at: idx)
@@ -463,13 +535,14 @@ struct SettingsView: View {
     private var musicDetail: some View {
         Form {
             Section {
-                Toggle("배경음악 사용", isOn: $settings.musicEnabled)
+                Toggle(t("배경음악 사용", "Enable Background Music"), isOn: $settings.musicEnabled)
             } footer: {
-                Text("슬라이드쇼·콜라주 재생 중 음악이 반복 재생됩니다.")
+                Text(t("슬라이드쇼·콜라주 재생 중 음악이 반복 재생됩니다.",
+                       "Music loops during slideshow and collage playback."))
             }
 
             if settings.musicEnabled {
-                Section("볼륨") {
+                Section(t("볼륨", "Volume")) {
                     HStack {
                         Image(systemName: "speaker.fill").foregroundStyle(.secondary)
                         Slider(value: $settings.musicVolume, in: 0...1)
@@ -480,7 +553,7 @@ struct SettingsView: View {
 
             Section {
                 if settings.musicTracks.isEmpty {
-                    Text("추가된 개별 음악이 없습니다")
+                    Text(t("추가된 개별 음악이 없습니다", "No individual tracks added"))
                         .foregroundStyle(.secondary)
                 } else {
                     ForEach(settings.musicTracks, id: \.self) { track in
@@ -492,37 +565,42 @@ struct SettingsView: View {
                 Button {
                     showMusicImporter = true
                 } label: {
-                    Label("음악 추가", systemImage: "plus.circle.fill")
+                    Label(t("음악 추가", "Add Music"), systemImage: "plus.circle.fill")
                 }
                 .disabled(settings.musicTracks.count >= SettingsStore.maxIndividualTracks)
             } header: {
-                Text("개별 음악 (최대 \(SettingsStore.maxIndividualTracks)곡)")
+                Text(t("개별 음악 (최대 \(SettingsStore.maxIndividualTracks)곡)",
+                       "Individual Tracks (max \(SettingsStore.maxIndividualTracks))"))
             } footer: {
-                Text("현재 \(settings.musicTracks.count)/\(SettingsStore.maxIndividualTracks)곡")
+                Text(t("현재 \(settings.musicTracks.count)/\(SettingsStore.maxIndividualTracks)곡",
+                       "\(settings.musicTracks.count)/\(SettingsStore.maxIndividualTracks) tracks"))
             }
 
             Section {
                 if let folder = settings.musicFolderName {
-                    Label("\(folder) (\(settings.musicFolderTracks.count)곡)", systemImage: "folder.fill")
+                    Label(t("\(folder) (\(settings.musicFolderTracks.count)곡)",
+                            "\(folder) (\(settings.musicFolderTracks.count) tracks)"),
+                          systemImage: "folder.fill")
                     Button(role: .destructive) {
                         clearMusicFolder()
                     } label: {
-                        Label("폴더 등록 해제", systemImage: "trash")
+                        Label(t("폴더 등록 해제", "Remove Folder"), systemImage: "trash")
                     }
                 } else {
-                    Text("등록된 폴더가 없습니다")
+                    Text(t("등록된 폴더가 없습니다", "No folder registered"))
                         .foregroundStyle(.secondary)
                 }
 
                 Button {
                     showFolderImporter = true
                 } label: {
-                    Label("폴더 등록", systemImage: "folder.badge.plus")
+                    Label(t("폴더 등록", "Register Folder"), systemImage: "folder.badge.plus")
                 }
             } header: {
-                Text("음악 폴더")
+                Text(t("음악 폴더", "Music Folder"))
             } footer: {
-                Text("폴더를 등록하면 그 안의 모든 음악 파일이 재생 목록에 추가됩니다.")
+                Text(t("폴더를 등록하면 그 안의 모든 음악 파일이 재생 목록에 추가됩니다.",
+                       "Registering a folder adds all music files inside to the playlist."))
             }
 
             if let musicImportError {
@@ -547,7 +625,6 @@ struct SettingsView: View {
         }
     }
 
-    /// 개별 음악 추가(최대 3곡). 앱 Music 디렉터리로 복사.
     private func importMusic(_ result: Result<[URL], Error>) {
         musicImportError = nil
         do {
@@ -555,7 +632,10 @@ struct SettingsView: View {
             let fm = FileManager.default
             for src in urls {
                 guard settings.musicTracks.count < SettingsStore.maxIndividualTracks else {
-                    musicImportError = "개별 음악은 최대 \(SettingsStore.maxIndividualTracks)곡까지 추가할 수 있습니다."
+                    musicImportError = t(
+                        "개별 음악은 최대 \(SettingsStore.maxIndividualTracks)곡까지 추가할 수 있습니다.",
+                        "You can add up to \(SettingsStore.maxIndividualTracks) individual tracks."
+                    )
                     break
                 }
                 let needsScope = src.startAccessingSecurityScopedResource()
@@ -570,11 +650,11 @@ struct SettingsView: View {
                 }
             }
         } catch {
-            musicImportError = "음악을 가져오지 못했습니다: \(error.localizedDescription)"
+            musicImportError = t("음악을 가져오지 못했습니다: \(error.localizedDescription)",
+                                 "Failed to import music: \(error.localizedDescription)")
         }
     }
 
-    /// 폴더 등록: 폴더 내 모든 음악 파일을 앱 Music 디렉터리로 복사.
     private func importMusicFolder(_ result: Result<[URL], Error>) {
         musicImportError = nil
         do {
@@ -592,11 +672,11 @@ struct SettingsView: View {
             let audioFiles = contents.filter { audioExtensions.contains($0.pathExtension.lowercased()) }
 
             guard !audioFiles.isEmpty else {
-                musicImportError = "선택한 폴더에 음악 파일이 없습니다."
+                musicImportError = t("선택한 폴더에 음악 파일이 없습니다.",
+                                     "No music files found in the selected folder.")
                 return
             }
 
-            // 기존 폴더 곡 정리 후 새로 복사.
             clearMusicFolder()
             var names: [String] = []
             for src in audioFiles {
@@ -608,7 +688,8 @@ struct SettingsView: View {
             settings.musicFolderTracks = names
             settings.musicFolderName = folder.lastPathComponent
         } catch {
-            musicImportError = "폴더를 가져오지 못했습니다: \(error.localizedDescription)"
+            musicImportError = t("폴더를 가져오지 못했습니다: \(error.localizedDescription)",
+                                 "Failed to import folder: \(error.localizedDescription)")
         }
     }
 
@@ -621,7 +702,6 @@ struct SettingsView: View {
         settings.musicTracks.remove(atOffsets: offsets)
     }
 
-    /// 등록된 폴더 음악 파일 삭제 및 등록 해제.
     private func clearMusicFolder() {
         let fm = FileManager.default
         for name in settings.musicFolderTracks {

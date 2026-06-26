@@ -1,87 +1,138 @@
 import SwiftUI
 
 /// 여러 사진을 창의적인 콜라주 레이아웃으로 한 화면에 보여준다.
-/// 같은 사진 수라도 장면마다 다른 배치(템플릿)가 번갈아 나와 사진 앱 PLAY 처럼 다채롭다.
+/// 장면 전환 시 이전 장면이 그대로 남아 있는 채 새 장면이 위에 겹쳐 나타나도록
+/// SlideshowView 와 동일한 레이어 누적 방식을 사용한다.
 struct CollageView: View {
     @ObservedObject var viewModel: FrameViewModel
     @EnvironmentObject private var settings: SettingsStore
 
-    /// 현재 장면(currentIndex)의 사진 수 — 고정 또는 범위 내 무작위.
-    private var sceneCount: Int {
-        settings.collagePhotoCount(forScene: viewModel.currentIndex)
-    }
+    /// 화면에 쌓인 장면 레이어. 마지막 항목이 맨 위(현재 장면).
+    @State private var collageSlides: [CollageSceneItem] = []
+    /// 장면 고유 id 생성용 카운터.
+    @State private var tick = 0
+    /// 전환 후 이전 레이어 정리 작업.
+    @State private var pruneTask: Task<Void, Never>?
 
-    private var photos: [FramePhoto] {
-        viewModel.collageBatch(count: sceneCount)
-    }
+    private let transitionDuration: TimeInterval = 0.9
 
-    /// 현재 장면에 사용할 템플릿 — currentIndex 에 따라 변형이 순환한다.
-    private var template: CollageTemplate {
-        CollageLayouts.template(count: photos.count, variant: viewModel.currentIndex)
+    struct CollageSceneItem: Identifiable {
+        let id: Int
+        let index: Int          // 장면 인덱스(템플릿 변형·전환 효과 결정용)
+        let photos: [FramePhoto]
     }
 
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
 
-            if photos.isEmpty {
+            if collageSlides.isEmpty {
                 ProgressView().tint(.white)
             } else {
-                GeometryReader { geo in
-                    let rects = layoutRects(in: geo.size)
-                    ZStack(alignment: .topLeading) {
-                        ForEach(Array(zip(photos.indices, photos)), id: \.1.id) { index, photo in
-                            let cell = rects.indices.contains(index) ? rects[index] : .zero
-                            collageCell(for: photo)
-                                .frame(width: cell.width, height: cell.height)
-                                .clipped()
-                                .offset(x: cell.minX, y: cell.minY)
-                                .transition(settings.slideTransition.resolved(
-                                    pool: settings.selectedTransitions,
-                                    index: viewModel.currentIndex + index
-                                ))
-                        }
-                    }
-                    .animation(.easeInOut(duration: 0.6), value: viewModel.currentIndex)
-                }
-                .ignoresSafeArea()
-                .contentShape(Rectangle())
-                .onTapGesture(count: 2) {
-                    withAnimation(.easeInOut(duration: 0.5)) {
-                        viewModel.advance(by: max(1, sceneCount))
-                    }
+                ForEach(collageSlides) { scene in
+                    collageScene(for: scene)
+                        // 삽입에만 전환 효과, 제거는 즉시(.identity) — 이전 장면이 아래에서 보인다.
+                        .transition(.asymmetric(
+                            insertion: settings.slideTransition.resolved(
+                                pool: settings.selectedTransitions,
+                                index: scene.index
+                            ),
+                            removal: .identity
+                        ))
                 }
             }
         }
         .ignoresSafeArea()
+        .onAppear { syncInitialScene() }
+        .onChange(of: viewModel.currentIndex) { _, _ in pushCurrentScene() }
+        .onChange(of: viewModel.photos.count) { _, _ in resetScenes() }
     }
 
-    /// 한 사진을 표시할 셀 뷰 — 채움 방식에 따라 달라진다.
+    // MARK: - 장면 렌더링
+
+    @ViewBuilder
+    private func collageScene(for scene: CollageSceneItem) -> some View {
+        let photos = scene.photos
+        let tmpl = CollageLayouts.template(count: photos.count, variant: scene.index)
+
+        GeometryReader { geo in
+            let rects = sceneLayoutRects(photos: photos, template: tmpl, in: geo.size)
+            ZStack(alignment: .topLeading) {
+                ForEach(Array(zip(photos.indices, photos)), id: \.1.id) { index, photo in
+                    let cell = rects.indices.contains(index) ? rects[index] : .zero
+                    collageCell(for: photo)
+                        .frame(width: cell.width, height: cell.height)
+                        .clipped()
+                        .offset(x: cell.minX, y: cell.minY)
+                }
+            }
+        }
+        .contentShape(Rectangle())
+        .onTapGesture(count: 2) {
+            let step = max(1, scene.photos.count)
+            viewModel.advance(by: step)
+            viewModel.startCollageTimer()
+        }
+        .ignoresSafeArea()
+    }
+
+    // MARK: - 레이어 관리
+
+    private func syncInitialScene() {
+        guard collageSlides.isEmpty else { return }
+        let count = settings.collagePhotoCount(forScene: viewModel.currentIndex)
+        let photos = viewModel.collageBatch(count: count)
+        guard !photos.isEmpty else { return }
+        tick += 1
+        collageSlides = [CollageSceneItem(id: tick, index: viewModel.currentIndex, photos: photos)]
+    }
+
+    private func resetScenes() {
+        pruneTask?.cancel()
+        collageSlides = []
+        syncInitialScene()
+    }
+
+    private func pushCurrentScene() {
+        let count = settings.collagePhotoCount(forScene: viewModel.currentIndex)
+        let photos = viewModel.collageBatch(count: count)
+        guard !photos.isEmpty else { return }
+        tick += 1
+        let item = CollageSceneItem(id: tick, index: viewModel.currentIndex, photos: photos)
+        withAnimation(.easeInOut(duration: transitionDuration)) {
+            collageSlides.append(item)
+        }
+        pruneTask?.cancel()
+        pruneTask = Task {
+            try? await Task.sleep(nanoseconds: UInt64((transitionDuration + 0.05) * 1_000_000_000))
+            guard !Task.isCancelled else { return }
+            if collageSlides.count > 1 { collageSlides = Array(collageSlides.suffix(1)) }
+        }
+    }
+
+    // MARK: - 셀 렌더링 · 레이아웃
+
     @ViewBuilder
     private func collageCell(for photo: FramePhoto) -> some View {
         switch settings.slideshowFitStyle {
         case .blurFill:
-            // 사진 전체(.fit) + 남는 여백은 블러 배경으로 채움.
             BlurFillPhotoView(photo: photo, viewModel: viewModel)
         case .aspect:
-            // 셀 비율 = 사진 비율이므로 .fill 로도 잘리지 않는다.
             AsyncPhotoView(photo: photo, contentMode: .fill, viewModel: viewModel)
         }
     }
 
-    /// 채움 방식에 맞는 각 사진의 픽셀 사각형 배열.
-    private func layoutRects(in size: CGSize) -> [CGRect] {
+    private func sceneLayoutRects(photos: [FramePhoto], template: CollageTemplate, in size: CGSize) -> [CGRect] {
         switch settings.slideshowFitStyle {
         case .blurFill:
-            return (0..<photos.count).map { cellRect(at: $0, in: size) }
+            return photos.indices.map { cellRect(at: $0, template: template, in: size) }
         case .aspect:
             let aspects = photos.map { $0.aspectRatio ?? (4.0 / 3.0) }
             return CollageLayouts.justified(aspects: aspects, in: size, spacing: 4)
         }
     }
 
-    /// 단위 좌표 셀을 실제 픽셀 사각형으로 변환(2pt 간격 적용).
-    private func cellRect(at index: Int, in size: CGSize) -> CGRect {
+    private func cellRect(at index: Int, template: CollageTemplate, in size: CGSize) -> CGRect {
         let cells = template.cells
         guard cells.indices.contains(index) else { return .zero }
         let unit = cells[index]
