@@ -422,8 +422,28 @@ struct SettingsView: View {
 
             // Ken Burns(팬/줌)는 한 장씩(단일) 재생일 때 적용된다.
             if settings.isSinglePhotoShow {
-                Section("효과") {
+                Section {
                     Toggle("Ken Burns 효과", isOn: $settings.kenBurnsEnabled)
+
+                    if settings.kenBurnsEnabled {
+                        HStack {
+                            Text("강도")
+                            Spacer()
+                            Text("\(Int((settings.kenBurnsIntensity * 100).rounded()))%")
+                                .foregroundStyle(.secondary)
+                        }
+                        Slider(value: $settings.kenBurnsIntensity, in: 0...1, step: 0.05) {
+                            Text("강도")
+                        } minimumValueLabel: {
+                            Text("0%").font(.caption2)
+                        } maximumValueLabel: {
+                            Text("100%").font(.caption2)
+                        }
+                    }
+                } header: {
+                    Text("효과")
+                } footer: {
+                    Text("강도가 높을수록 팬/줌 움직임이 커집니다. 0%면 움직임 없이 고정됩니다.")
                 }
             }
         }

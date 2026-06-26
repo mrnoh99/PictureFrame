@@ -18,6 +18,7 @@ struct SlideshowView: View {
                     photo: photo,
                     viewModel: viewModel,
                     enabled: settings.kenBurnsEnabled,
+                    intensity: CGFloat(settings.kenBurnsIntensity),
                     duration: settings.slideInterval,
                     sequence: viewModel.currentIndex,
                     fitStyle: settings.slideshowFitStyle
@@ -84,6 +85,8 @@ private struct KenBurnsPhotoView: View {
     let photo: FramePhoto
     @ObservedObject var viewModel: FrameViewModel
     let enabled: Bool
+    /// Ken Burns 강도(0~1). 패턴의 줌/팬 크기를 이 비율만큼만 적용한다.
+    let intensity: CGFloat
     let duration: TimeInterval
     /// 현재 사진의 순번 — 패턴을 순서대로 선택하는 데 사용.
     let sequence: Int
@@ -139,13 +142,17 @@ private struct KenBurnsPhotoView: View {
         .ignoresSafeArea()
     }
 
+    /// 강도를 반영한 줌 배율(1.0 = 효과 없음 기준에서 강도만큼 보간).
     private var currentScale: CGFloat {
         guard enabled else { return 1.0 }
-        return atEnd ? pattern.endScale : pattern.startScale
+        let base = atEnd ? pattern.endScale : pattern.startScale
+        return 1 + (base - 1) * intensity
     }
 
+    /// 강도를 반영한 이동량.
     private var currentOffset: CGSize {
         guard enabled else { return .zero }
-        return atEnd ? pattern.endOffset : pattern.startOffset
+        let base = atEnd ? pattern.endOffset : pattern.startOffset
+        return CGSize(width: base.width * intensity, height: base.height * intensity)
     }
 }

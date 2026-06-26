@@ -47,6 +47,11 @@ final class SettingsStore: ObservableObject {
         didSet { UserDefaults.standard.set(kenBurnsEnabled, forKey: "kenBurnsEnabled") }
     }
 
+    /// Ken Burns 효과 강도 (0.0 ~ 1.0). 0이면 정지, 1이면 최대 팬/줌.
+    @Published var kenBurnsIntensity: Double {
+        didSet { UserDefaults.standard.set(kenBurnsIntensity, forKey: "kenBurnsIntensity") }
+    }
+
     /// 사진 전환 효과.
     @Published var slideTransition: SlideTransition {
         didSet { UserDefaults.standard.set(slideTransition.rawValue, forKey: "slideTransition") }
@@ -162,6 +167,7 @@ final class SettingsStore: ObservableObject {
         displayMode = DisplayMode(rawValue: defaults.string(forKey: "displayMode") ?? "") ?? .slideshow
         slideInterval = defaults.double(forKey: "slideInterval").nonZero ?? AppConfig.defaultSlideInterval
         kenBurnsEnabled = defaults.object(forKey: "kenBurnsEnabled") as? Bool ?? true
+        kenBurnsIntensity = defaults.object(forKey: "kenBurnsIntensity") as? Double ?? 1.0
         slideTransition = SlideTransition(rawValue: defaults.string(forKey: "slideTransition") ?? "") ?? .crossfade
         let savedTransitions: [String] = Self.load(key: "selectedTransitions") ?? []
         let restored = savedTransitions.compactMap { SlideTransition(rawValue: $0) }
