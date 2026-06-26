@@ -1,22 +1,6 @@
 import Foundation
 import Combine
 
-/// 콜라주 한 화면의 사진 수를 정하는 방식.
-enum CollageCountMode: String, CaseIterable, Codable, Identifiable {
-    /// 항상 동일한 장수.
-    case fixed
-    /// 지정한 범위 안에서 장면마다 무작위.
-    case random
-
-    var id: String { rawValue }
-    var displayName: String {
-        switch self {
-        case .fixed:  return "고정"
-        case .random: return "범위 내 무작위"
-        }
-    }
-}
-
 /// 콜라주에서 각 사진을 셀(모양)에 채우는 방식.
 enum CollageFitStyle: String, CaseIterable, Codable, Identifiable {
     /// 템플릿 격자 배치 + 사진 전체를 보이게 하고 남는 여백은 블러 배경으로 채움.
@@ -68,24 +52,14 @@ final class SettingsStore: ObservableObject {
         didSet { save(selectedTransitions.map(\.rawValue), key: "selectedTransitions") }
     }
 
-    // MARK: - 콜라주 설정
+    // MARK: - 장수 설정 (한 화면 사진 수 범위)
 
-    /// 콜라주 장수 결정 방식(고정/범위 무작위).
-    @Published var collageCountMode: CollageCountMode {
-        didSet { UserDefaults.standard.set(collageCountMode.rawValue, forKey: "collageCountMode") }
-    }
-
-    /// 콜라주 한 화면에 표시할 사진 수 (고정 모드, 2~9).
-    @Published var collageCount: Int {
-        didSet { UserDefaults.standard.set(collageCount, forKey: "collageCount") }
-    }
-
-    /// 무작위 모드의 최소 장수 (2~9).
+    /// 한 화면 사진 수의 최소값 (1~9). 최소=최대면 고정, 다르면 범위 내 무작위.
     @Published var collageRangeMin: Int {
         didSet { UserDefaults.standard.set(collageRangeMin, forKey: "collageRangeMin") }
     }
 
-    /// 무작위 모드의 최대 장수 (2~9).
+    /// 한 화면 사진 수의 최대값 (1~9).
     @Published var collageRangeMax: Int {
         didSet { UserDefaults.standard.set(collageRangeMax, forKey: "collageRangeMax") }
     }
@@ -95,28 +69,23 @@ final class SettingsStore: ObservableObject {
         didSet { UserDefaults.standard.set(slideshowFitStyle.rawValue, forKey: "slideshowFitStyle") }
     }
 
-    /// 한 장씩 슬라이드쇼인지 여부(장수 고정 = 1장). 그 외에는 콜라주 형태로 재생.
+    /// 항상 한 장씩(단일) 재생인지 여부(범위가 1~1로 고정). 그 외에는 콜라주 형태로 재생.
     var isSinglePhotoShow: Bool {
-        collageCountMode == .fixed && collageCount == 1
+        min(collageRangeMin, collageRangeMax) == 1 && max(collageRangeMin, collageRangeMax) == 1
     }
 
-    /// 주어진 장면(scene)에 사용할 콜라주 사진 수.
-    /// 고정 모드면 항상 동일하고, 무작위 모드면 장면마다 범위 안에서 결정적으로 달라진다.
+    /// 주어진 장면(scene)에 사용할 한 화면 사진 수.
+    /// 최소==최대면 고정, 다르면 범위 안에서 장면마다 결정적으로 달라진다.
     /// (결정적이어야 같은 장면에서 batch/advance/template 가 항상 일치한다.)
     func collagePhotoCount(forScene scene: Int) -> Int {
-        switch collageCountMode {
-        case .fixed:
-            return collageCount
-        case .random:
-            let lo = max(1, min(collageRangeMin, collageRangeMax))
-            let hi = max(collageRangeMin, collageRangeMax)
-            let span = hi - lo + 1
-            guard span > 1 else { return lo }
-            // 장면 인덱스 기반 의사난수(해시) → 같은 장면이면 항상 같은 값.
-            var x = UInt64(bitPattern: Int64(scene &+ 1))
-            x = (x &* 0x9E3779B97F4A7C15) ^ (x >> 29)
-            return lo + Int(x % UInt64(span))
-        }
+        let lo = max(1, min(collageRangeMin, collageRangeMax))
+        let hi = max(collageRangeMin, collageRangeMax)
+        let span = hi - lo + 1
+        guard span > 1 else { return lo }
+        // 장면 인덱스 기반 의사난수(해시) → 같은 장면이면 항상 같은 값.
+        var x = UInt64(bitPattern: Int64(scene &+ 1))
+        x = (x &* 0x9E3779B97F4A7C15) ^ (x >> 29)
+        return lo + Int(x % UInt64(span))
     }
 
     // MARK: - 배경음악 설정
@@ -131,10 +100,23 @@ final class SettingsStore: ObservableObject {
         didSet { UserDefaults.standard.set(musicVolume, forKey: "musicVolume") }
     }
 
-    /// 가져온 음악 파일명 목록 (앱 Documents/Music 디렉터리 기준).
+    /// 개별로 추가한 음악 파일명 목록 (앱 Documents/Music 디렉터리 기준, 최대 3개).
     @Published var musicTracks: [String] {
         didSet { save(musicTracks, key: "musicTracks") }
     }
+
+    /// 등록한 폴더에서 가져온 음악 파일명 목록 (앱 Documents/Music 기준).
+    @Published var musicFolderTracks: [String] {
+        didSet { save(musicFolderTracks, key: "musicFolderTracks") }
+    }
+
+    /// 등록한 음악 폴더 이름(표시용). 없으면 nil.
+    @Published var musicFolderName: String? {
+        didSet { UserDefaults.standard.set(musicFolderName, forKey: "musicFolderName") }
+    }
+
+    /// 개별 음악으로 등록 가능한 최대 곡 수.
+    static let maxIndividualTracks = 3
 
     // MARK: - 오버레이(위젯) 설정
 
@@ -156,9 +138,14 @@ final class SettingsStore: ObservableObject {
         return dir
     }()
 
-    /// 재생 가능한 음악 파일 URL 목록.
+    /// 재생 가능한 음악 파일 URL 목록(개별 + 폴더).
     var musicURLs: [URL] {
-        musicTracks.map { Self.musicDirectory.appendingPathComponent($0) }
+        (musicTracks + musicFolderTracks).map { Self.musicDirectory.appendingPathComponent($0) }
+    }
+
+    /// 등록된 음악이 하나라도 있는지.
+    var hasAnyMusic: Bool {
+        !musicTracks.isEmpty || !musicFolderTracks.isEmpty
     }
 
     // MARK: - 초기화
@@ -173,14 +160,14 @@ final class SettingsStore: ObservableObject {
         let savedTransitions: [String] = Self.load(key: "selectedTransitions") ?? []
         let restored = savedTransitions.compactMap { SlideTransition(rawValue: $0) }
         selectedTransitions = restored.isEmpty ? [.crossfade, .slide, .zoom] : restored
-        collageCountMode = CollageCountMode(rawValue: defaults.string(forKey: "collageCountMode") ?? "") ?? .fixed
-        collageCount = defaults.integer(forKey: "collageCount").nonZero ?? 4
-        collageRangeMin = defaults.integer(forKey: "collageRangeMin").nonZero ?? 3
-        collageRangeMax = defaults.integer(forKey: "collageRangeMax").nonZero ?? 6
+        collageRangeMin = defaults.integer(forKey: "collageRangeMin").nonZero ?? 1
+        collageRangeMax = defaults.integer(forKey: "collageRangeMax").nonZero ?? 4
         slideshowFitStyle = CollageFitStyle(rawValue: defaults.string(forKey: "slideshowFitStyle") ?? "") ?? .blurFill
         musicEnabled = defaults.object(forKey: "musicEnabled") as? Bool ?? false
         musicVolume = defaults.object(forKey: "musicVolume") as? Double ?? 0.6
         musicTracks = Self.load(key: "musicTracks") ?? []
+        musicFolderTracks = Self.load(key: "musicFolderTracks") ?? []
+        musicFolderName = defaults.string(forKey: "musicFolderName")
         showClock = defaults.object(forKey: "showClock") as? Bool ?? false
         showWeather = defaults.object(forKey: "showWeather") as? Bool ?? false
     }

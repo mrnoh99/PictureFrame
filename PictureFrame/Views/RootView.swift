@@ -37,6 +37,7 @@ struct RootView: View {
         .onAppear(perform: syncMusic)
         .onChange(of: settings.musicEnabled) { _, _ in syncMusic() }
         .onChange(of: settings.musicTracks) { _, _ in syncMusic() }
+        .onChange(of: settings.musicFolderTracks) { _, _ in syncMusic() }
         .onChange(of: settings.musicVolume) { _, newValue in audioPlayer.setVolume(newValue) }
         .onChange(of: settings.selectedAlbums.isEmpty) { _, _ in syncMusic() }
         .onChange(of: scenePhase) { _, phase in
@@ -49,7 +50,7 @@ struct RootView: View {
     /// (액자가 표시 중이고 배경음악이 켜져 있으며 트랙이 있을 때만 재생)
     private func syncMusic() {
         let shouldPlay = settings.musicEnabled
-            && !settings.musicTracks.isEmpty
+            && settings.hasAnyMusic
             && !settings.selectedAlbums.isEmpty
         audioPlayer.setTracks(settings.musicURLs)
         audioPlayer.setVolume(settings.musicVolume)

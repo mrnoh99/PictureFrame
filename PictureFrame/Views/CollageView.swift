@@ -36,7 +36,10 @@ struct CollageView: View {
                                 .frame(width: cell.width, height: cell.height)
                                 .clipped()
                                 .offset(x: cell.minX, y: cell.minY)
-                                .transition(.opacity.combined(with: .scale(scale: 0.96)))
+                                .transition(settings.slideTransition.resolved(
+                                    pool: settings.selectedTransitions,
+                                    index: viewModel.currentIndex + index
+                                ))
                         }
                     }
                     .animation(.easeInOut(duration: 0.6), value: viewModel.currentIndex)
