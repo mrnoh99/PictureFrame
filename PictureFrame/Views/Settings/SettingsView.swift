@@ -12,11 +12,20 @@ struct SettingsView: View {
     @State private var selection: SettingsSection? = .albums
     @State private var showAlbumPicker = false
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
-    // 파일 임포터 상태 — body 레벨에서 통합 관리해 SwiftUI 충돌 방지
-    @State private var showMusicImporter = false
-    @State private var showFolderImporter = false
-    @State private var showPhotoFolderImporter = false
     @State private var musicImportError: String?
+
+    // SwiftUI 버그: 같은 뷰에 .fileImporter를 여러 개 달면 마지막 것만 동작한다.
+    // 단일 임포터 + 열거형으로 어떤 대화상자를 열지 구분한다.
+    private enum ImportTarget { case musicTracks, musicFolder, photoFolder }
+    @State private var importTarget: ImportTarget?
+
+    private var importerPresented: Binding<Bool> {
+        Binding(get: { importTarget != nil }, set: { if !$0 { importTarget = nil } })
+    }
+    private var importerTypes: [UTType] {
+        importTarget == .musicTracks ? [.audio] : [.folder]
+    }
+    private var importerMultiSelect: Bool { importTarget == .musicTracks }
 
     enum SettingsSection: String, CaseIterable, Identifiable, Hashable {
         case albums, slideshow, grid, music, overlay
@@ -115,22 +124,20 @@ struct SettingsView: View {
             default:         break
             }
         }
-        // 파일 임포터 전부 최상위에 배치 — 같은 뷰에 중복으로 두면 SwiftUI 버그로 작동 안 함
+        // 단일 .fileImporter — 여러 개 달면 마지막 것만 동작하는 SwiftUI 버그 회피
         .fileImporter(
-            isPresented: $showMusicImporter,
-            allowedContentTypes: [.audio],
-            allowsMultipleSelection: true
-        ) { importMusic($0) }
-        .fileImporter(
-            isPresented: $showFolderImporter,
-            allowedContentTypes: [.folder],
-            allowsMultipleSelection: false
-        ) { importMusicFolder($0) }
-        .fileImporter(
-            isPresented: $showPhotoFolderImporter,
-            allowedContentTypes: [.folder],
-            allowsMultipleSelection: false
-        ) { importPhotoFolder($0) }
+            isPresented: importerPresented,
+            allowedContentTypes: importerTypes,
+            allowsMultipleSelection: importerMultiSelect
+        ) { result in
+            switch importTarget {
+            case .musicTracks: importMusic(result)
+            case .musicFolder: importMusicFolder(result)
+            case .photoFolder: importPhotoFolder(result)
+            case nil: break
+            }
+            importTarget = nil
+        }
     }
 
     // MARK: - 번역 헬퍼
@@ -289,7 +296,7 @@ struct SettingsView: View {
                 }
 
                 Button {
-                    showPhotoFolderImporter = true
+                    importTarget = .photoFolder
                 } label: {
                     Label(t("폴더에서 사진 선택", "Select Photo Folder"), systemImage: "folder.badge.plus")
                 }
@@ -500,7 +507,7 @@ struct SettingsView: View {
                 }
 
                 Button {
-                    showMusicImporter = true
+                    importTarget = .musicTracks
                 } label: {
                     Label(t("음악 추가", "Add Music"), systemImage: "plus.circle.fill")
                 }
@@ -528,7 +535,7 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
                 }
                 Button {
-                    showFolderImporter = true
+                    importTarget = .musicFolder
                 } label: {
                     Label(t("폴더 등록", "Register Folder"), systemImage: "folder.badge.plus")
                 }
