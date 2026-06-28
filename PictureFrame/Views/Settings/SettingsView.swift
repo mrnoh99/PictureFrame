@@ -6,22 +6,20 @@ import UniformTypeIdentifiers
 struct SettingsView: View {
     let photoLib: PhotoLibraryService
     @EnvironmentObject private var settings: SettingsStore
-    @EnvironmentObject private var lightroomAuth: LightroomAuthService
     @EnvironmentObject private var weather: WeatherProvider
     @Environment(\.dismiss) private var dismiss
 
     @State private var selection: SettingsSection? = .albums
     @State private var showAlbumPicker = false
-    @State private var albumSource: PhotoSourceKind = .photoLibrary
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
+    // 파일 임포터 상태 — body 레벨에서 통합 관리해 SwiftUI 충돌 방지
     @State private var showMusicImporter = false
     @State private var showFolderImporter = false
     @State private var showPhotoFolderImporter = false
     @State private var musicImportError: String?
-    @State private var pendingSourceInfo: String?
 
     enum SettingsSection: String, CaseIterable, Identifiable, Hashable {
-        case albums, slideshow, grid, music, overlay, lightroom
+        case albums, slideshow, grid, music, overlay
         var id: String { rawValue }
 
         static var sidebarCases: [SettingsSection] { allCases }
@@ -33,7 +31,6 @@ struct SettingsView: View {
             case .grid:      return "그리드"
             case .music:     return "배경음악"
             case .overlay:   return "위젯 오버레이"
-            case .lightroom: return "Lightroom 계정"
             }
         }
 
@@ -44,7 +41,6 @@ struct SettingsView: View {
             case .grid:      return "Grid"
             case .music:     return "Music"
             case .overlay:   return "Widgets"
-            case .lightroom: return "Lightroom"
             }
         }
 
@@ -55,7 +51,6 @@ struct SettingsView: View {
             case .grid:      return "square.grid.2x2"
             case .music:     return "music.note"
             case .overlay:   return "clock"
-            case .lightroom: return "camera.filters"
             }
         }
     }
@@ -83,9 +78,7 @@ struct SettingsView: View {
             .navigationSplitViewColumnWidth(min: 240, ideal: 280, max: 340)
             .safeAreaInset(edge: .bottom) {
                 VStack(spacing: 8) {
-                    Button {
-                        dismiss()
-                    } label: {
+                    Button { dismiss() } label: {
                         Label(t("쇼 시작", "Start Show"), systemImage: "play.fill")
                             .font(.headline)
                             .frame(maxWidth: .infinity)
@@ -113,7 +106,7 @@ struct SettingsView: View {
         }
         .navigationSplitViewStyle(.balanced)
         .sheet(isPresented: $showAlbumPicker) {
-            AlbumPickerView(source: albumSource, photoLib: photoLib)
+            AlbumPickerView(source: .photoLibrary, photoLib: photoLib)
         }
         .onChange(of: selection) { _, newValue in
             switch newValue {
@@ -122,6 +115,22 @@ struct SettingsView: View {
             default:         break
             }
         }
+        // 파일 임포터 전부 최상위에 배치 — 같은 뷰에 중복으로 두면 SwiftUI 버그로 작동 안 함
+        .fileImporter(
+            isPresented: $showMusicImporter,
+            allowedContentTypes: [.audio],
+            allowsMultipleSelection: true
+        ) { importMusic($0) }
+        .fileImporter(
+            isPresented: $showFolderImporter,
+            allowedContentTypes: [.folder],
+            allowsMultipleSelection: false
+        ) { importMusicFolder($0) }
+        .fileImporter(
+            isPresented: $showPhotoFolderImporter,
+            allowedContentTypes: [.folder],
+            allowsMultipleSelection: false
+        ) { importPhotoFolder($0) }
     }
 
     // MARK: - 번역 헬퍼
@@ -137,6 +146,8 @@ struct SettingsView: View {
     private func transitionName(_ tr: SlideTransition) -> String {
         guard settings.appLanguage == "en" else { return tr.displayName }
         switch tr {
+        case .mixed:          return "Mixed"
+        case .randomSelected: return "Random Pick"
         case .crossfade:      return "Crossfade"
         case .slide:          return "Slide"
         case .push:           return "Push"
@@ -146,8 +157,6 @@ struct SettingsView: View {
         case .pushDown:       return "Push Down"
         case .blur:           return "Blur"
         case .flip:           return "Flip"
-        case .mixed:          return "Mixed"
-        case .randomSelected: return "Random Pick"
         }
     }
 
@@ -169,7 +178,6 @@ struct SettingsView: View {
         case .grid:      gridDetail
         case .music:     musicDetail
         case .overlay:   overlayDetail
-        case .lightroom: lightroomDetail
         }
     }
 
@@ -224,27 +232,27 @@ struct SettingsView: View {
 
     private var weatherStatusIcon: String {
         switch weather.availability {
-        case .available: return "checkmark.circle.fill"
-        case .denied, .unavailable: return "exclamationmark.triangle.fill"
-        default: return "clock.fill"
+        case .available:             return "checkmark.circle.fill"
+        case .denied, .unavailable:  return "exclamationmark.triangle.fill"
+        default:                     return "clock.fill"
         }
     }
 
     private var weatherStatusColor: Color {
         switch weather.availability {
-        case .available: return .green
-        case .denied, .unavailable: return .orange
-        default: return .secondary
+        case .available:             return .green
+        case .denied, .unavailable:  return .orange
+        default:                     return .secondary
         }
     }
 
     private var weatherStatusTitle: String {
         switch weather.availability {
-        case .idle:        return t("대기 중", "Idle")
-        case .requesting:  return t("확인 중…", "Checking…")
+        case .idle:        return t("대기 중",        "Idle")
+        case .requesting:  return t("확인 중…",       "Checking…")
         case .denied:      return t("위치 권한 없음", "Location Denied")
-        case .available:   return t("사용 가능", "Available")
-        case .unavailable: return t("사용 불가", "Unavailable")
+        case .available:   return t("사용 가능",      "Available")
+        case .unavailable: return t("사용 불가",      "Unavailable")
         }
     }
 
@@ -259,8 +267,7 @@ struct SettingsView: View {
                 } else {
                     ForEach(settings.selectedAlbums) { sel in
                         HStack {
-                            Image(systemName: sel.source.systemImage)
-                                .foregroundStyle(.accent)
+                            Image(systemName: sel.source.systemImage).foregroundStyle(.accent)
                             VStack(alignment: .leading) {
                                 Text(sel.title).font(.body)
                                 Text(sel.source.displayName)
@@ -269,16 +276,13 @@ struct SettingsView: View {
                         }
                     }
                     .onDelete { indexSet in
-                        indexSet.forEach { i in
-                            settings.removeAlbum(settings.selectedAlbums[i])
-                        }
+                        indexSet.forEach { i in settings.removeAlbum(settings.selectedAlbums[i]) }
                     }
                 }
             }
 
             Section(t("앨범 추가", "Add Albums")) {
                 Button {
-                    albumSource = .photoLibrary
                     showAlbumPicker = true
                 } label: {
                     Label(t("iOS 사진 앨범", "iOS Photo Library"), systemImage: "photo.on.rectangle")
@@ -289,69 +293,7 @@ struct SettingsView: View {
                 } label: {
                     Label(t("폴더에서 사진 선택", "Select Photo Folder"), systemImage: "folder.badge.plus")
                 }
-
-                if AppConfig.Lightroom.partnerApprovalPending {
-                    Button {
-                        selection = .lightroom
-                    } label: {
-                        Label(t("Lightroom (승인 대기 중)", "Lightroom (Pending Approval)"),
-                              systemImage: "clock.badge.exclamationmark")
-                            .foregroundStyle(.orange)
-                    }
-                } else if AppConfig.Lightroom.isConfigured {
-                    Button {
-                        albumSource = .lightroom
-                        showAlbumPicker = true
-                    } label: {
-                        Label(t("Lightroom 앨범", "Lightroom Albums"), systemImage: "camera.filters")
-                    }
-                } else {
-                    Button {
-                        selection = .lightroom
-                    } label: {
-                        Label(t("Lightroom 설정 필요", "Lightroom Setup Required"),
-                              systemImage: "exclamationmark.triangle")
-                            .foregroundStyle(.orange)
-                    }
-                }
-
-                Button {
-                    pendingSourceInfo = t(
-                        "네이버 MyBox 연동은 준비 중입니다. 네이버 OAuth 앱 등록과 API 승인 후 사용할 수 있습니다.",
-                        "Naver MyBox integration is coming soon. Available after OAuth app registration and API approval."
-                    )
-                } label: {
-                    Label(t("네이버 MyBox (준비 중)", "Naver MyBox (Coming Soon)"),
-                          systemImage: "clock.badge.exclamationmark")
-                        .foregroundStyle(.orange)
-                }
-
-                Button {
-                    pendingSourceInfo = t(
-                        "구글 포토 연동은 준비 중입니다. Google Photos API OAuth 클라이언트 등록과 승인 후 사용할 수 있습니다.",
-                        "Google Photos integration is coming soon. Available after OAuth client registration and approval."
-                    )
-                } label: {
-                    Label(t("구글 포토 (준비 중)", "Google Photos (Coming Soon)"),
-                          systemImage: "clock.badge.exclamationmark")
-                        .foregroundStyle(.orange)
-                }
             }
-        }
-        .alert(t("연동 준비 중", "Coming Soon"), isPresented: Binding(
-            get: { pendingSourceInfo != nil },
-            set: { if !$0 { pendingSourceInfo = nil } }
-        )) {
-            Button(t("확인", "OK"), role: .cancel) { pendingSourceInfo = nil }
-        } message: {
-            Text(pendingSourceInfo ?? "")
-        }
-        .fileImporter(
-            isPresented: $showPhotoFolderImporter,
-            allowedContentTypes: [.folder],
-            allowsMultipleSelection: false
-        ) { result in
-            importPhotoFolder(result)
         }
     }
 
@@ -360,7 +302,7 @@ struct SettingsView: View {
         do {
             try settings.addFolderAlbum(url: folder)
         } catch {
-            pendingSourceInfo = t(
+            musicImportError = t(
                 "폴더를 등록하지 못했습니다: \(error.localizedDescription)",
                 "Failed to register folder: \(error.localizedDescription)"
             )
@@ -374,8 +316,7 @@ struct SettingsView: View {
             Section {
                 Text(t("전체 사진을 격자 갤러리 형태로 한눈에 보여주고 스크롤할 수 있습니다.",
                        "View all photos in a scrollable grid gallery."))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(.caption).foregroundStyle(.secondary)
             } header: {
                 Text(t("그리드", "Grid"))
             }
@@ -407,8 +348,8 @@ struct SettingsView: View {
             Text(t("장수", "Count"))
         } footer: {
             Text(t(
-                "최소·최대를 같게 하면 고정 장수, 다르게 하면 그 범위 안에서 장면마다 무작위로 정해집니다. 1장이면 한 장씩 슬라이드쇼, 2장 이상이면 콜라주 형태로 재생됩니다.",
-                "Equal min/max = fixed count; different = random per scene. 1 photo = slideshow, 2+ = collage."
+                "최소·최대를 같게 하면 고정 장수, 다르게 하면 범위 안에서 장면마다 무작위. 1장=슬라이드쇼, 2장 이상=콜라주.",
+                "Equal min/max = fixed count; different = random per scene. 1 = slideshow, 2+ = collage."
             ))
         }
     }
@@ -429,11 +370,10 @@ struct SettingsView: View {
 
                 Text(settings.slideshowFitStyle == .blurFill
                      ? t("사진 전체를 보여주고, 남는 여백은 블러 배경으로 채웁니다.",
-                         "Shows the full photo; remaining space is filled with a blurred background.")
+                         "Shows the full photo; remaining space filled with a blurred background.")
                      : t("사진 전체를 비율 그대로 보여줍니다(남는 부분은 검은 여백).",
                          "Shows the full photo at its aspect ratio (black letterbox)."))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(.caption).foregroundStyle(.secondary)
             }
 
             Section {
@@ -458,7 +398,7 @@ struct SettingsView: View {
             }
 
             Section(t("전환 효과", "Transition Effect")) {
-                Picker(t("전환 효과", "Effect"), selection: $settings.slideTransition) {
+                Picker(t("효과", "Effect"), selection: $settings.slideTransition) {
                     ForEach(SlideTransition.allCases) { transition in
                         Text(transitionName(transition)).tag(transition)
                     }
@@ -482,11 +422,9 @@ struct SettingsView: View {
                             }
                         }
                         .foregroundStyle(.primary)
-                        .disabled(!isOn && settings.selectedTransitions.count >= SlideTransition.maxRandomSelection)
                     }
                 } header: {
-                    Text(t("적용할 효과 (최대 \(SlideTransition.maxRandomSelection)개)",
-                           "Effects to apply (max \(SlideTransition.maxRandomSelection))"))
+                    Text(t("적용할 효과 선택", "Select Effects to Apply"))
                 } footer: {
                     Text(t("선택한 \(settings.selectedTransitions.count)개 효과 중 무작위로 적용됩니다.",
                            "\(settings.selectedTransitions.count) effect(s) selected; applied randomly."))
@@ -496,7 +434,6 @@ struct SettingsView: View {
             if settings.isSinglePhotoShow {
                 Section {
                     Toggle(t("Ken Burns 효과", "Ken Burns Effect"), isOn: $settings.kenBurnsEnabled)
-
                     if settings.kenBurnsEnabled {
                         HStack {
                             Text(t("강도", "Intensity"))
@@ -525,7 +462,7 @@ struct SettingsView: View {
     private func toggleTransition(_ effect: SlideTransition) {
         if let idx = settings.selectedTransitions.firstIndex(of: effect) {
             settings.selectedTransitions.remove(at: idx)
-        } else if settings.selectedTransitions.count < SlideTransition.maxRandomSelection {
+        } else {
             settings.selectedTransitions.append(effect)
         }
     }
@@ -590,7 +527,6 @@ struct SettingsView: View {
                     Text(t("등록된 폴더가 없습니다", "No folder registered"))
                         .foregroundStyle(.secondary)
                 }
-
                 Button {
                     showFolderImporter = true
                 } label: {
@@ -603,25 +539,11 @@ struct SettingsView: View {
                        "Registering a folder adds all music files inside to the playlist."))
             }
 
-            if let musicImportError {
+            if let err = musicImportError {
                 Section {
-                    Text(musicImportError).font(.caption).foregroundStyle(.red)
+                    Text(err).font(.caption).foregroundStyle(.red)
                 }
             }
-        }
-        .fileImporter(
-            isPresented: $showMusicImporter,
-            allowedContentTypes: [.audio],
-            allowsMultipleSelection: true
-        ) { result in
-            importMusic(result)
-        }
-        .fileImporter(
-            isPresented: $showFolderImporter,
-            allowedContentTypes: [.folder],
-            allowsMultipleSelection: false
-        ) { result in
-            importMusicFolder(result)
         }
     }
 
@@ -709,11 +631,5 @@ struct SettingsView: View {
         }
         settings.musicFolderTracks = []
         settings.musicFolderName = nil
-    }
-
-    // MARK: Lightroom 계정
-
-    private var lightroomDetail: some View {
-        LightroomSetupView()
     }
 }

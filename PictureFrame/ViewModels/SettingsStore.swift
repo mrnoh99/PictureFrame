@@ -110,7 +110,7 @@ final class SettingsStore: ObservableObject {
         didSet { UserDefaults.standard.set(musicVolume, forKey: "musicVolume") }
     }
 
-    /// 개별로 추가한 음악 파일명 목록 (앱 Documents/Music 디렉터리 기준, 최대 3개).
+    /// 개별로 추가한 음악 파일명 목록 (앱 Documents/Music 디렉터리 기준, 최대 10개).
     @Published var musicTracks: [String] {
         didSet { save(musicTracks, key: "musicTracks") }
     }
@@ -126,7 +126,7 @@ final class SettingsStore: ObservableObject {
     }
 
     /// 개별 음악으로 등록 가능한 최대 곡 수.
-    static let maxIndividualTracks = 3
+    static let maxIndividualTracks = 10
 
     // MARK: - 오버레이(위젯) 설정
 

@@ -2,6 +2,10 @@ import SwiftUI
 
 /// 슬라이드쇼에서 사진이 바뀔 때 적용되는 전환 효과.
 enum SlideTransition: String, CaseIterable, Codable, Identifiable {
+    /// 여러 효과를 순서대로 번갈아 사용.
+    case mixed
+    /// 사용자가 고른 효과들 중 무작위로 적용.
+    case randomSelected
     /// 부드러운 페이드(크로스페이드).
     case crossfade
     /// 옆으로 밀어내기.
@@ -20,10 +24,6 @@ enum SlideTransition: String, CaseIterable, Codable, Identifiable {
     case blur
     /// 책장처럼 넘기기(3D 플립).
     case flip
-    /// 여러 효과를 순서대로 번갈아 사용.
-    case mixed
-    /// 사용자가 고른 효과(최대 5개) 중 무작위로 적용.
-    case randomSelected
 
     var id: String { rawValue }
 
