@@ -13,6 +13,9 @@ struct SettingsView: View {
     // 클로저에서 환경이 전파되지 않아 crash 가 발생한다.
     // 같은 UserDefaults 키를 읽는 @AppStorage 를 사용해 직접 접근한다.
     @AppStorage("appLanguage") private var appLanguage: String = "ko"
+    // .safeAreaInset / .toolbar / .navigationTitle 클로저에서도 @EnvironmentObject 가
+    // 전달되지 않으므로 필요한 값을 @State 로 캐싱하고 onChange 로 동기화한다.
+    @State private var hasAlbums: Bool = false
 
     @State private var selection: SettingsSection? = .albums
     @State private var showAlbumPicker = false
@@ -104,7 +107,7 @@ struct SettingsView: View {
                             .padding(.vertical, 6)
                     }
                     .buttonStyle(.borderedProminent)
-                    .disabled(settings.selectedAlbums.isEmpty)
+                    .disabled(!hasAlbums)
                     .padding(.horizontal)
 
                     Text("Developed by JaiSung NOH MD 2026")
@@ -124,6 +127,8 @@ struct SettingsView: View {
             }
         }
         .navigationSplitViewStyle(.balanced)
+        .onAppear { hasAlbums = !settings.selectedAlbums.isEmpty }
+        .onChange(of: settings.selectedAlbums.count) { _, count in hasAlbums = count > 0 }
         .sheet(isPresented: $showAlbumPicker) {
             AlbumPickerView(source: .photoLibrary, photoLib: photoLib)
         }
