@@ -69,19 +69,22 @@ struct SettingsView: View {
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
             List(selection: $selection) {
-                // 언어 선택 — 사이드바 최상단
-                Section {
-                    Picker("", selection: $settings.appLanguage) {
-                        Text("한국어").tag("ko")
-                        Text("English").tag("en")
-                    }
-                    .pickerStyle(.segmented)
-                }
-
                 ForEach(SettingsSection.sidebarCases) { section in
                     Label(sectionTitle(section), systemImage: section.systemImage)
                         .tag(section)
                 }
+            }
+            .safeAreaInset(edge: .top, spacing: 0) {
+                // List(selection:) 안에 다른 태그 타입(String)의 Picker를 넣으면
+                // SwiftUI 선택 시스템이 타입 불일치로 충돌한다 → 리스트 밖에 배치.
+                Picker("", selection: $settings.appLanguage) {
+                    Text("한국어").tag("ko")
+                    Text("English").tag("en")
+                }
+                .pickerStyle(.segmented)
+                .padding(.horizontal)
+                .padding(.vertical, 8)
+                .background(.bar)
             }
             .navigationTitle(t("설정", "Settings"))
             .navigationSplitViewColumnWidth(min: 240, ideal: 280, max: 340)
