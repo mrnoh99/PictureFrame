@@ -77,6 +77,33 @@ struct SettingsView: View {
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
             List(selection: $selection) {
+                // 언어 선택 — List(selection:)에 Picker를 넣으면 String 태그가
+                // SettingsSection? 타입과 충돌해 crash 발생 → Button 으로 직접 구현.
+                Section {
+                    HStack(spacing: 4) {
+                        ForEach([("한국어", "ko"), ("English", "en")], id: \.1) { label, lang in
+                            Button { appLanguage = lang } label: {
+                                Text(label)
+                                    .font(.subheadline)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 5)
+                                    .background(
+                                        appLanguage == lang
+                                            ? Color(uiColor: .systemBackground)
+                                            : Color.clear,
+                                        in: RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                    )
+                                    .foregroundStyle(appLanguage == lang ? .primary : .secondary)
+                            }
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .padding(3)
+                    .background(.quaternary, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+                    .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                    .listRowBackground(Color.clear)
+                }
+
                 ForEach(SettingsSection.sidebarCases) { section in
                     Label(sectionTitle(section), systemImage: section.systemImage)
                         .tag(section)
@@ -84,18 +111,7 @@ struct SettingsView: View {
             }
             .navigationTitle(t("설정", "Settings"))
             .navigationSplitViewColumnWidth(min: 240, ideal: 280, max: 340)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Picker("", selection: $appLanguage) {
-                        Text("한국어").tag("ko")
-                        Text("English").tag("en")
-                    }
-                    .pickerStyle(.segmented)
-                    .fixedSize()
-                }
-            }
             .onChange(of: appLanguage) { _, newLang in
-                // @AppStorage 변경을 SettingsStore 에 동기화해 다른 뷰도 언어를 따라간다.
                 settings.appLanguage = newLang
             }
             .safeAreaInset(edge: .bottom) {
