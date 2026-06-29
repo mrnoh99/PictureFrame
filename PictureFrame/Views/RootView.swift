@@ -5,6 +5,7 @@ struct RootView: View {
     @EnvironmentObject private var settings: SettingsStore
     @EnvironmentObject private var lightroomAuth: LightroomAuthService
     @EnvironmentObject private var audioPlayer: AudioPlayerService
+    @EnvironmentObject private var weather: WeatherProvider
     @Environment(\.scenePhase) private var scenePhase
     @State private var showSettings = false
     /// 액자(play) 화면에서 설정 버튼 노출 여부. 화면을 터치하면 잠시 나타난다.
@@ -37,7 +38,11 @@ struct RootView: View {
             }
         }
         .fullScreenCover(isPresented: $showSettings) {
+            // fullScreenCover 는 일부 iOS 버전에서 @EnvironmentObject 를 자동으로
+            // 상속하지 않아 SettingsView 안에서 crash 가 발생한다 — 명시적으로 주입.
             SettingsView(photoLib: photoLib)
+                .environmentObject(settings)
+                .environmentObject(weather)
         }
         .ignoresSafeArea()
         .onAppear(perform: syncMusic)
