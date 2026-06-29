@@ -18,14 +18,14 @@ struct SettingsView: View {
     // 단일 임포터 + 열거형으로 어떤 대화상자를 열지 구분한다.
     private enum ImportTarget { case musicTracks, musicFolder, photoFolder }
     @State private var importTarget: ImportTarget?
+    @State private var showFileImporter = false   // isPresented 전용 — computed Binding은 불안정
 
-    private var importerPresented: Binding<Bool> {
-        Binding(get: { importTarget != nil }, set: { if !$0 { importTarget = nil } })
-    }
-    private var importerTypes: [UTType] {
-        importTarget == .musicTracks ? [.audio] : [.folder]
-    }
-    private var importerMultiSelect: Bool { importTarget == .musicTracks }
+    // 지원 오디오 포맷: .audio(상위) + 개별 포맷 명시로 FLAC·WAV 포함 보장
+    private static let audioTypes: [UTType] = [
+        .audio, .mp3, .mpeg4Audio, .aiff,
+        UTType(filenameExtension: "flac"), UTType(filenameExtension: "wav"),
+        UTType(filenameExtension: "alac"), UTType(filenameExtension: "caf"),
+    ].compactMap { $0 }
 
     enum SettingsSection: String, CaseIterable, Identifiable, Hashable {
         case albums, slideshow, grid, music, overlay
@@ -126,17 +126,17 @@ struct SettingsView: View {
         }
         // 단일 .fileImporter — 여러 개 달면 마지막 것만 동작하는 SwiftUI 버그 회피
         .fileImporter(
-            isPresented: importerPresented,
-            allowedContentTypes: importerTypes,
-            allowsMultipleSelection: importerMultiSelect
+            isPresented: $showFileImporter,
+            allowedContentTypes: importTarget == .musicTracks ? Self.audioTypes : [.folder],
+            allowsMultipleSelection: importTarget == .musicTracks
         ) { result in
+            defer { showFileImporter = false; importTarget = nil }
             switch importTarget {
             case .musicTracks: importMusic(result)
             case .musicFolder: importMusicFolder(result)
             case .photoFolder: importPhotoFolder(result)
             case nil: break
             }
-            importTarget = nil
         }
     }
 
@@ -297,6 +297,7 @@ struct SettingsView: View {
 
                 Button {
                     importTarget = .photoFolder
+                    showFileImporter = true
                 } label: {
                     Label(t("폴더에서 사진 선택", "Select Photo Folder"), systemImage: "folder.badge.plus")
                 }
@@ -508,6 +509,7 @@ struct SettingsView: View {
 
                 Button {
                     importTarget = .musicTracks
+                    showFileImporter = true
                 } label: {
                     Label(t("음악 추가", "Add Music"), systemImage: "plus.circle.fill")
                 }
@@ -536,6 +538,7 @@ struct SettingsView: View {
                 }
                 Button {
                     importTarget = .musicFolder
+                    showFileImporter = true
                 } label: {
                     Label(t("폴더 등록", "Register Folder"), systemImage: "folder.badge.plus")
                 }
