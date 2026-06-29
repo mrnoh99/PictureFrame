@@ -9,6 +9,11 @@ struct SettingsView: View {
     @EnvironmentObject private var weather: WeatherProvider
     @Environment(\.dismiss) private var dismiss
 
+    // @EnvironmentObject 는 NavigationSplitView sidebar 의 .toolbar / .navigationTitle
+    // 클로저에서 환경이 전파되지 않아 crash 가 발생한다.
+    // 같은 UserDefaults 키를 읽는 @AppStorage 를 사용해 직접 접근한다.
+    @AppStorage("appLanguage") private var appLanguage: String = "ko"
+
     @State private var selection: SettingsSection? = .albums
     @State private var showAlbumPicker = false
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
@@ -77,16 +82,18 @@ struct SettingsView: View {
             .navigationTitle(t("설정", "Settings"))
             .navigationSplitViewColumnWidth(min: 240, ideal: 280, max: 340)
             .toolbar {
-                // Picker를 List(selection:) 밖 toolbar에 배치 — safeAreaInset도
-                // List 계층을 공유해 selection 환경이 누출되므로 toolbar로 이동.
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Picker("", selection: $settings.appLanguage) {
+                    Picker("", selection: $appLanguage) {
                         Text("한국어").tag("ko")
                         Text("English").tag("en")
                     }
                     .pickerStyle(.segmented)
                     .fixedSize()
                 }
+            }
+            .onChange(of: appLanguage) { _, newLang in
+                // @AppStorage 변경을 SettingsStore 에 동기화해 다른 뷰도 언어를 따라간다.
+                settings.appLanguage = newLang
             }
             .safeAreaInset(edge: .bottom) {
                 VStack(spacing: 8) {
@@ -146,15 +153,15 @@ struct SettingsView: View {
     // MARK: - 번역 헬퍼
 
     private func t(_ ko: String, _ en: String) -> String {
-        settings.appLanguage == "en" ? en : ko
+        appLanguage == "en" ? en : ko
     }
 
     private func sectionTitle(_ section: SettingsSection) -> String {
-        settings.appLanguage == "en" ? section.titleEn : section.title
+        appLanguage == "en" ? section.titleEn : section.title
     }
 
     private func transitionName(_ tr: SlideTransition) -> String {
-        guard settings.appLanguage == "en" else { return tr.displayName }
+        guard appLanguage == "en" else { return tr.displayName }
         switch tr {
         case .mixed:          return "Mixed"
         case .randomSelected: return "Random Pick"
@@ -171,7 +178,7 @@ struct SettingsView: View {
     }
 
     private func fitStyleName(_ style: CollageFitStyle) -> String {
-        guard settings.appLanguage == "en" else { return style.displayName }
+        guard appLanguage == "en" else { return style.displayName }
         switch style {
         case .blurFill: return "Blur Background"
         case .aspect:   return "Aspect Fit"
