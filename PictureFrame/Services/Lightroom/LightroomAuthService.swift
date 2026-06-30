@@ -42,7 +42,9 @@ final class LightroomAuthService: NSObject, ObservableObject {
         let challenge = Self.codeChallenge(for: verifier)
         pkceVerifier = verifier
 
-        var components = URLComponents(string: AppConfig.Lightroom.authorizeURL)!
+        guard var components = URLComponents(string: AppConfig.Lightroom.authorizeURL) else {
+            throw PhotoProviderError.server("잘못된 인증 URL")
+        }
         components.queryItems = [
             .init(name: "client_id", value: AppConfig.Lightroom.clientID),
             .init(name: "scope", value: AppConfig.Lightroom.scopes),
@@ -139,7 +141,10 @@ final class LightroomAuthService: NSObject, ObservableObject {
     }
 
     private func requestToken(params: [String: String]) async throws {
-        var request = URLRequest(url: URL(string: AppConfig.Lightroom.tokenURL)!)
+        guard let tokenURL = URL(string: AppConfig.Lightroom.tokenURL) else {
+            throw PhotoProviderError.server("잘못된 토큰 URL")
+        }
+        var request = URLRequest(url: tokenURL)
         request.httpMethod = "POST"
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
         request.httpBody = params
