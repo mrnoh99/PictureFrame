@@ -5,10 +5,8 @@ struct RootView: View {
     @EnvironmentObject private var settings: SettingsStore
     @EnvironmentObject private var lightroomAuth: LightroomAuthService
     @EnvironmentObject private var audioPlayer: AudioPlayerService
-    @EnvironmentObject private var weather: WeatherProvider
     @Environment(\.scenePhase) private var scenePhase
     @State private var showSettings = false
-    /// 액자(play) 화면에서 설정 버튼 노출 여부. 화면을 터치하면 잠시 나타난다.
     @State private var controlsVisible = false
     @State private var hideControlsTask: Task<Void, Never>?
 
@@ -20,11 +18,9 @@ struct RootView: View {
                 WelcomeView(showSettings: $showSettings)
             } else {
                 frameView
-                    // 화면을 터치하면 설정 버튼이 나타난다(잠시 후 자동으로 숨김).
                     .onTapGesture { revealControls() }
             }
 
-            // 액자 모드에서는 터치 시에만 설정 버튼이 보인다.
             if !settings.selectedAlbums.isEmpty && controlsVisible {
                 Button { showSettings = true } label: {
                     Image(systemName: "gearshape.fill")
@@ -38,11 +34,8 @@ struct RootView: View {
             }
         }
         .fullScreenCover(isPresented: $showSettings) {
-            // fullScreenCover 는 일부 iOS 버전에서 @EnvironmentObject 를 자동으로
-            // 상속하지 않아 SettingsView 안에서 crash 가 발생한다 — 명시적으로 주입.
             SettingsView(photoLib: photoLib)
                 .environmentObject(settings)
-                .environmentObject(weather)
         }
         .ignoresSafeArea()
         .onAppear(perform: syncMusic)
@@ -52,12 +45,10 @@ struct RootView: View {
         .onChange(of: settings.musicVolume) { _, newValue in audioPlayer.setVolume(newValue) }
         .onChange(of: settings.selectedAlbums.isEmpty) { _, _ in syncMusic() }
         .onChange(of: scenePhase) { _, phase in
-            // 백그라운드 진입 시 일시정지, 복귀 시 재개.
             if phase == .active { syncMusic() } else { audioPlayer.pause() }
         }
     }
 
-    /// 화면 터치 시 설정 버튼을 표시하고, 3초 후 자동으로 숨긴다.
     private func revealControls() {
         withAnimation { controlsVisible = true }
         hideControlsTask?.cancel()
@@ -68,8 +59,6 @@ struct RootView: View {
         }
     }
 
-    /// 현재 상태에 따라 배경음악 재생/정지를 동기화한다.
-    /// (액자가 표시 중이고 배경음악이 켜져 있으며 트랙이 있을 때만 재생)
     private func syncMusic() {
         let shouldPlay = settings.musicEnabled
             && settings.hasAnyMusic

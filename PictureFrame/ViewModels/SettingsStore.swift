@@ -135,11 +135,6 @@ final class SettingsStore: ObservableObject {
         didSet { UserDefaults.standard.set(showClock, forKey: "showClock") }
     }
 
-    /// 날씨 오버레이 표시 여부.
-    @Published var showWeather: Bool {
-        didSet { UserDefaults.standard.set(showWeather, forKey: "showWeather") }
-    }
-
     /// UI 표시 언어 ("ko" = 한국어, "en" = English).
     @Published var appLanguage: String {
         didSet { UserDefaults.standard.set(appLanguage, forKey: "appLanguage") }
@@ -186,7 +181,6 @@ final class SettingsStore: ObservableObject {
         musicFolderTracks = Self.load(key: "musicFolderTracks") ?? []
         musicFolderName = defaults.string(forKey: "musicFolderName")
         showClock = defaults.object(forKey: "showClock") as? Bool ?? false
-        showWeather = defaults.object(forKey: "showWeather") as? Bool ?? false
         appLanguage = defaults.string(forKey: "appLanguage") ?? "ko"
     }
 

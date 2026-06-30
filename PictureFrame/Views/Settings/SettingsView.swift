@@ -6,7 +6,6 @@ import UniformTypeIdentifiers
 struct SettingsView: View {
     let photoLib: PhotoLibraryService
     @EnvironmentObject private var settings: SettingsStore
-    @EnvironmentObject private var weather: WeatherProvider
     @Environment(\.dismiss) private var dismiss
 
     // @EnvironmentObject 는 NavigationSplitView sidebar 의 .toolbar / .navigationTitle
@@ -229,68 +228,6 @@ struct SettingsView: View {
                 Text(t("시계", "Clock"))
             }
 
-            Section {
-                Toggle(t("날씨 표시", "Show Weather"), isOn: $settings.showWeather)
-            } header: {
-                Text(t("날씨", "Weather"))
-            } footer: {
-                Text(t("현재 위치의 날씨를 액자 위에 표시합니다.",
-                       "Displays current location weather over the frame."))
-            }
-
-            if settings.showWeather {
-                Section(t("날씨 상태", "Weather Status")) {
-                    HStack(spacing: 12) {
-                        Image(systemName: weatherStatusIcon)
-                            .font(.title3)
-                            .foregroundStyle(weatherStatusColor)
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(weatherStatusTitle)
-                                .font(.subheadline.weight(.medium))
-                            Text(weather.availability.message)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    if weather.availability.isOK, let temp = weather.temperatureText {
-                        HStack {
-                            Image(systemName: weather.symbolName).symbolRenderingMode(.multicolor)
-                            Text(t("현재 \(temp)", "Current \(temp)"))
-                            if let c = weather.conditionText { Text("· \(c)").foregroundStyle(.secondary) }
-                        }
-                        .font(.callout)
-                    }
-                }
-            }
-        }
-        .task(id: settings.showWeather) {
-            if settings.showWeather { weather.start() }
-        }
-    }
-
-    private var weatherStatusIcon: String {
-        switch weather.availability {
-        case .available:             return "checkmark.circle.fill"
-        case .denied, .unavailable:  return "exclamationmark.triangle.fill"
-        default:                     return "clock.fill"
-        }
-    }
-
-    private var weatherStatusColor: Color {
-        switch weather.availability {
-        case .available:             return .green
-        case .denied, .unavailable:  return .orange
-        default:                     return .secondary
-        }
-    }
-
-    private var weatherStatusTitle: String {
-        switch weather.availability {
-        case .idle:        return t("대기 중",        "Idle")
-        case .requesting:  return t("확인 중…",       "Checking…")
-        case .denied:      return t("위치 권한 없음", "Location Denied")
-        case .available:   return t("사용 가능",      "Available")
-        case .unavailable: return t("사용 불가",      "Unavailable")
         }
     }
 

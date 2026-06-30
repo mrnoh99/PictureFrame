@@ -4,7 +4,6 @@ import SwiftUI
 struct FrameContainerView: View {
     @StateObject var viewModel: FrameViewModel
     @EnvironmentObject private var settings: SettingsStore
-    @EnvironmentObject private var weather: WeatherProvider
 
     var body: some View {
         Group {
@@ -15,13 +14,12 @@ struct FrameContainerView: View {
             } else {
                 switch settings.displayMode {
                 case .slideshow:
-                    // 장수 1장 = 한 장씩 슬라이드쇼, 2장 이상 = 콜라주 형태.
                     if settings.isSinglePhotoShow {
                         SlideshowView(viewModel: viewModel)
                     } else {
                         CollageView(viewModel: viewModel)
                     }
-                case .collage:   CollageView(viewModel: viewModel)   // 과거 설정 호환
+                case .collage:   CollageView(viewModel: viewModel)
                 case .grid:      GridGalleryView(viewModel: viewModel)
                 }
             }
@@ -38,9 +36,6 @@ struct FrameContainerView: View {
         .onChange(of: settings.isSinglePhotoShow) { _, _ in startAppropriateTimer() }
         .onChange(of: viewModel.photos.count) { _, _ in startAppropriateTimer() }
         .onDisappear { viewModel.stopSlideTimer() }
-        .task(id: settings.showWeather) {
-            if settings.showWeather { weather.start() }
-        }
         .overlay(alignment: .bottom) {
             if let error = viewModel.errorMessage {
                 Text(error)
@@ -53,9 +48,6 @@ struct FrameContainerView: View {
         }
     }
 
-    /// 현재 표시 방식/장수에 맞는 재생 타이머를 시작한다.
-    /// 뷰 교체(콜라주↔단일) 시 onAppear/onDisappear 경합으로 타이머가 꺼지는 것을 막기 위해
-    /// 컨테이너에서 일원화해 관리한다.
     private func startAppropriateTimer() {
         guard !viewModel.photos.isEmpty else { return }
         switch settings.displayMode {
