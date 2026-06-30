@@ -20,12 +20,12 @@ struct RootView: View {
                 WelcomeView(showSettings: $showSettings)
             } else {
                 frameView
-                    // 화면을 터치하면 설정 버튼이 나타난다(잠시 후 자동으로 숨김).
-                    .onTapGesture { revealControls() }
+                    .onTapGesture {
+                        if !settings.alwaysShowControls { revealControls() }
+                    }
             }
 
-            // 액자 모드에서는 터치 시에만 설정 버튼이 보인다.
-            if !settings.selectedAlbums.isEmpty && controlsVisible {
+            if !settings.selectedAlbums.isEmpty && (settings.alwaysShowControls || controlsVisible) {
                 Button { showSettings = true } label: {
                     Image(systemName: "gearshape.fill")
                         .font(.title2)
@@ -36,6 +36,9 @@ struct RootView: View {
                 .padding()
                 .transition(.opacity)
             }
+        }
+        .onChange(of: settings.alwaysShowControls) { _, always in
+            if always { hideControlsTask?.cancel(); controlsVisible = false }
         }
         .fullScreenCover(isPresented: $showSettings) {
             // fullScreenCover 는 일부 iOS 버전에서 @EnvironmentObject 를 자동으로

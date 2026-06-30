@@ -140,6 +140,11 @@ final class SettingsStore: ObservableObject {
         didSet { UserDefaults.standard.set(showWeather, forKey: "showWeather") }
     }
 
+    /// 설정 버튼을 항상 표시할지(true) 터치 시만 표시할지(false).
+    @Published var alwaysShowControls: Bool {
+        didSet { UserDefaults.standard.set(alwaysShowControls, forKey: "alwaysShowControls") }
+    }
+
     /// UI 표시 언어 ("ko" = 한국어, "en" = English).
     @Published var appLanguage: String {
         didSet { UserDefaults.standard.set(appLanguage, forKey: "appLanguage") }
@@ -187,6 +192,7 @@ final class SettingsStore: ObservableObject {
         musicFolderName = defaults.string(forKey: "musicFolderName")
         showClock = defaults.object(forKey: "showClock") as? Bool ?? false
         showWeather = defaults.object(forKey: "showWeather") as? Bool ?? false
+        alwaysShowControls = defaults.object(forKey: "alwaysShowControls") as? Bool ?? true
         appLanguage = defaults.string(forKey: "appLanguage") ?? "ko"
     }
 

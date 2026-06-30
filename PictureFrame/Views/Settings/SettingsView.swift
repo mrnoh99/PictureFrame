@@ -263,6 +263,16 @@ struct SettingsView: View {
                 }
             }
         }
+            Section {
+                Toggle(t("설정 버튼 항상 표시", "Always Show Settings Button"), isOn: $settings.alwaysShowControls)
+            } header: {
+                Text(t("설정 버튼", "Settings Button"))
+            } footer: {
+                Text(settings.alwaysShowControls
+                     ? t("설정 버튼이 화면에 항상 표시됩니다.", "The settings button is always visible.")
+                     : t("화면을 터치하면 설정 버튼이 3초간 표시됩니다.", "Tap the screen to show the settings button for 3 seconds."))
+            }
+        }
         .task(id: settings.showWeather) {
             if settings.showWeather { weather.start() }
         }
