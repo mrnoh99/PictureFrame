@@ -7,6 +7,8 @@ struct RootView: View {
     @EnvironmentObject private var audioPlayer: AudioPlayerService
     @Environment(\.scenePhase) private var scenePhase
     @State private var showSettings = false
+    @State private var controlsVisible = false
+    @State private var hideControlsTask: Task<Void, Never>?
 
     private let photoLib = PhotoLibraryService()
 
@@ -16,9 +18,12 @@ struct RootView: View {
                 WelcomeView(showSettings: $showSettings)
             } else {
                 frameView
+                    .onTapGesture {
+                        if !settings.alwaysShowControls { revealControls() }
+                    }
             }
 
-            if !settings.selectedAlbums.isEmpty {
+            if !settings.selectedAlbums.isEmpty && (settings.alwaysShowControls || controlsVisible) {
                 Button { showSettings = true } label: {
                     Image(systemName: "gearshape.fill")
                         .font(.title2)
@@ -27,6 +32,13 @@ struct RootView: View {
                         .background(.ultraThinMaterial, in: Circle())
                 }
                 .padding()
+                .transition(.opacity)
+            }
+        }
+        .onChange(of: settings.alwaysShowControls) { _, always in
+            if always {
+                hideControlsTask?.cancel()
+                controlsVisible = false
             }
         }
         .fullScreenCover(isPresented: $showSettings) {
@@ -42,6 +54,16 @@ struct RootView: View {
         .onChange(of: settings.selectedAlbums.isEmpty) { _, _ in syncMusic() }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { syncMusic() } else { audioPlayer.pause() }
+        }
+    }
+
+    private func revealControls() {
+        withAnimation { controlsVisible = true }
+        hideControlsTask?.cancel()
+        hideControlsTask = Task {
+            try? await Task.sleep(nanoseconds: 3_000_000_000)
+            guard !Task.isCancelled else { return }
+            withAnimation { controlsVisible = false }
         }
     }
 
